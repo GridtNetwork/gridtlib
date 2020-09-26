@@ -1,10 +1,8 @@
-import random
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.associationproxy import association_proxy
 
 from db import Base
-from .user import User
 from .signal import Signal
 from .movement_user_association import MovementUserAssociation
 
@@ -21,7 +19,7 @@ class Movement(Base):
         flossing.save_to_db()
 
     :Note: changes are only saved to the database when
-        :func:`Movement.save_to_db` is called.
+    :func:`Movement.save_to_db` is called.
 
     :param str name: Name of the movement
     :param str interval: Interval in which the user is supposed to repeat the
@@ -55,61 +53,11 @@ class Movement(Base):
         creator=lambda user: MovementUserAssociation(follower=user),
     )
 
-    @property
-    def current_users(self):
-        return (
-            User.query.join(User.follower_associations)
-            .filter(
-                MovementUserAssociation.movement_id == self.id,
-                MovementUserAssociation.destroyed is None,
-            )
-            .group_by(User.id)
-            .all()
-        )
-
     def __init__(self, name, interval, short_description="", description=""):
         self.name = name
         self.interval = interval
         self.short_description = short_description
         self.description = description
-
-    def swap_leader(self, user, leader):
-        """
-        Swap out the presented leader in the users leaders.
-
-        :param user: User who's leader will be swapped.
-        :param leader: The leader that will be swapped.
-        :return: New leader or None
-        """
-        if not leader:
-            raise ValueError("Cannot swap a leader that does not exist.")
-
-        # We can not change someone's leader if they are not already
-        # following that leader.
-        if leader and leader not in user.leaders(self):
-            raise ValueError("User is not following that leader.")
-
-        # If there are no other possible leaders than we can't perform the
-        # swap.
-        possible_leaders = self.find_leaders(user)
-        if not possible_leaders:
-            return None
-
-        mua = MovementUserAssociation.query.filter(
-            MovementUserAssociation.follower_id == user.id,
-            MovementUserAssociation.leader_id == leader.id,
-            MovementUserAssociation.movement_id == self.id,
-            MovementUserAssociation.destroyed is None,
-        ).one()
-
-        mua.destroy()
-
-        new_leader = random.choice(possible_leaders)
-        new_assoc = MovementUserAssociation(self, user, new_leader)
-
-        new_assoc.save_to_db()
-
-        return new_leader
 
     def dictify(self, user):
         """
