@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from sqlalchemy import not_, or_, func
+from sqlalchemy import not_
 from sqlalchemy.orm.query import Query
 from db import Session
 from models import User, MovementUserAssociation, Movement
@@ -8,8 +8,10 @@ from models import User, MovementUserAssociation, Movement
 @contextmanager
 def session_scope():
     """
-    Context for dealing with sessions. This allows the developer not to have to
-    worry perse about closing and creating the session.
+    Context for dealing with sessions.
+
+    This allows the developer not to have to worry perse about closing and
+    creating the session.
     """
     session = Session()
     try:
@@ -20,38 +22,6 @@ def session_scope():
         raise
     finally:
         session.close()
-
-
-def get_current_users(movement: Movement, session: Session) -> Query:
-    """
-    Get all the users subscribed to a movement.
-
-    :param movement The relevant movement
-    :param session The session the query needs to be performed in
-    """
-    return (
-        session.query(User)
-        .join(User.follower_associations)
-        .filter(
-            MovementUserAssociation.movement_id == movement.id,
-            MovementUserAssociation.destroyed.is_(None),
-        )
-        .group_by(User.id)
-    )
-
-
-def get_current_movements(user: User, session: Session) -> Query:
-    return (
-        session.query(Movement)
-        .join(Movement.user_associations)
-        .filter(
-            or_(
-                MovementUserAssociation.follower_id == user.id,
-                MovementUserAssociation.leader_id == user.id
-            ),
-            MovementUserAssociation.destroyed.is_(None)
-        )
-    )
 
 
 def leaders(user: User, movement: Movement, session: Session) -> Query:
@@ -78,9 +48,7 @@ def leaders(user: User, movement: Movement, session: Session) -> Query:
 def possible_leaders(
     user: User, movement: Movement, session: Session
 ) -> Query:
-    """
-    Find possible leaders for a user in a movement.
-    """
+    """Find possible leaders for a user in a movement."""
     return (
         session.query(User)
         .join(User.follower_associations)
@@ -115,29 +83,9 @@ def leaderless(user: User, movement: Movement, session: Session) -> Query:
         MUA.movement_id == movement.id, MUA.leader_id == user.id
     )
 
-    valid_muas = (
-        session.query(
-            MUA,
-            func.count().label("mua_count"),
-        )
-        .filter(
-            MUA.movement_id == movement.id,
-            MUA.destroyed.is_(None),
-        )
-        .group_by(MUA.follower_id)
-        .subquery()
+    available_leaderless = movement.leaderless.filter(
+        not_(User.id == user.id),
+        not_(User.id.in_(leader_associations))
     )
 
-    leaderless = (
-        session.query(User)
-        .join(User.follower_associations)
-        .filter(
-            not_(User.id == user.id),
-            valid_muas.c.follower_id == User.id,
-            valid_muas.c.mua_count < 4,
-        )
-        .group_by(MUA.follower_id)
-        .filter(not_(User.id.in_(leader_associations)))
-    )
-
-    return leaderless
+    return available_leaderless

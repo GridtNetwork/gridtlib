@@ -1,4 +1,4 @@
-from .basetest import BaseTest
+from basetest import BaseTest
 from models import User, MovementUserAssociation, Movement
 from .helpers import leaders, possible_leaders, leaderless
 

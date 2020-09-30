@@ -8,11 +8,13 @@ pylint = "*"
 flake8 = "*"
 freezegun = "*"
 flake8-docstrings = "*"
+lorem = "*"
 
 [packages]
 sqlalchemy = "*"
 pyjwt = "*"
 passlib = "*"
+sendgrid = "*"
 
 [requires]
 python_version = "3.8"

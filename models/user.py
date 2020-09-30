@@ -1,5 +1,7 @@
+import datetime
+import jwt
 from sqlalchemy import Column, Integer, String, UnicodeText
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, object_session
 from sqlalchemy.ext.associationproxy import association_proxy
 
 from passlib.apps import custom_app_context as pwd_context
@@ -54,7 +56,8 @@ class User(Base):
         from .movement import Movement
 
         return (
-            Movement.query.join(MovementUserAssociation)
+            object_session(self).query(Movement)
+            .join(MovementUserAssociation)
             .filter(
                 MovementUserAssociation.movement_id == Movement.id,
                 MovementUserAssociation.follower_id == self.id,
@@ -93,10 +96,24 @@ class User(Base):
     def verify_password(self, password):
         """
         Verify that this password matches with the hashed version in the
-            database.
+        database.
+
         :rtype bool:
         """
         return pwd_context.verify(password, self.password_hash)
+
+    def get_password_reset_token(self, secret_key):
+        now = datetime.datetime.now()
+        valid = datetime.timedelta(hours=2)
+        exp = now + valid
+        exp = exp.timestamp()
+
+        payload = {"user_id": self.id, "exp": exp}
+
+        token = jwt.encode(payload, secret_key, algorithm="HS256").decode(
+            "utf-8"
+        )
+        return token
 
     def dictify(self, include_email=False):
         res = {

@@ -1,7 +1,7 @@
 from datetime import datetime
 from freezegun import freeze_time
-from .basetest import BaseTest
-from .helpers import leaders, get_current_users, get_current_movements
+from basetest import BaseTest
+from .helpers import leaders
 from .movements import subscribe, remove_user_from_movement
 from models import User, Movement, MovementUserAssociation
 
@@ -85,9 +85,9 @@ class TestMovements(BaseTest):
             remove_user_from_movement(user1.id, movement1.id)
         self.session.add_all([user1, movement1, mua1])
 
-        self.assertFalse(user1 in get_current_users(movement1, self.session))
+        self.assertFalse(user1 in movement1.active_users)
         self.assertFalse(
-            movement1 in get_current_movements(user1, self.session)
+            movement1 in user1.current_movements
         )
 
         self.assertEqual(

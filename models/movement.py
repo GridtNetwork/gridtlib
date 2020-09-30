@@ -1,10 +1,11 @@
-from sqlalchemy import Column, Integer, String
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, or_, func
+from sqlalchemy.orm import relationship, object_session
 from sqlalchemy.ext.associationproxy import association_proxy
 
 from db import Base
 from .signal import Signal
 from .movement_user_association import MovementUserAssociation
+from .user import User
 
 
 class Movement(Base):
@@ -58,6 +59,53 @@ class Movement(Base):
         self.interval = interval
         self.short_description = short_description
         self.description = description
+
+    @property
+    def active_users(self):
+        return (
+            object_session(self)
+            .query(User)
+            .join(Movement.user_associations)
+            .filter(
+                or_(
+                    MovementUserAssociation.leader_id == User.id,
+                    MovementUserAssociation.follower_id == User.id,
+                ),
+                MovementUserAssociation.movement_id == self.id,
+                MovementUserAssociation.destroyed.is_(None),
+            )
+            .group_by(User.id)
+        )
+
+    @property
+    def leaderless(self):
+        session = object_session(self)
+
+        MUA = MovementUserAssociation
+
+        valid_muas = (
+            session.query(
+                MUA,
+                func.count().label("mua_count"),
+            )
+            .filter(
+                MUA.movement_id == self.id,
+                MUA.destroyed.is_(None),
+            )
+            .group_by(MUA.follower_id)
+            .subquery()
+        )
+
+        return (
+            session
+            .query(User)
+            .join(User.follower_associations)
+            .filter(
+                valid_muas.c.follower_id == User.id,
+                valid_muas.c.mua_count < 4,
+            )
+            .group_by(MUA.follower_id)
+        )
 
     def dictify(self, user):
         """
