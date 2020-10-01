@@ -105,19 +105,3 @@ def remove_user_from_movement(user_id: int, movement: int):
             else:
                 new_mua = MovementUserAssociation(movement, mua.follower, None)
                 session.add(new_mua)
-
-# class NewSignalResource(Resource):
-#     @jwt_required()
-#     def post(self, movement_id):
-#         movement = get_movement(movement_id)
-#         if current_identity not in movement.current_users:
-#             return {"message": "User is not subscribed to this movement."}
-
-#         message = None
-#         if request.get_json():
-#             message = request.get_json().get("message")
-
-#         signal = Signal(current_identity, movement, message)
-#         signal.save_to_db()
-
-#         return {"message": "Successfully created signal."}, 201

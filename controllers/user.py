@@ -47,10 +47,22 @@ def reset_password(token: str, password: str, secret_key: str):
         send_password_change_notification(user.email)
 
 
-def verify_password(id: int, password: str):
+def verify_password_for_id(id: int, password: str) -> int:
     with session_scope() as session:
         user = session.query(User).get(id)
-        return user.verify_password(password)
+        if user.verify_password(password):
+            return user.id
+        else:
+            raise ValueError("Wrong password")
+
+
+def verify_password_for_email(email: str, password: str) -> int:
+    with session_scope() as session:
+        user = session.query(User).filter_by(email=email).one()
+        if user.verify_password(password):
+            return user.id
+        else:
+            raise ValueError("Wrong password")
 
 
 def register(username: str, email: str, password: str):
