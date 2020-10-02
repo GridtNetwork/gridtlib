@@ -1,7 +1,7 @@
 import random
 from itertools import chain
 from .helpers import session_scope, leaders, leaderless, possible_leaders
-from models import Movement, User, MovementUserAssociation
+from gridt.models import Movement, User, MovementUserAssociation
 
 
 def all_movements():

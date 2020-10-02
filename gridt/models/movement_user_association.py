@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
-from db import Base
+from gridt.db import Base
 
 
 class MovementUserAssociation(Base):

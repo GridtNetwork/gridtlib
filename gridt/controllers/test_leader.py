@@ -1,5 +1,5 @@
-from basetest import BaseTest
-from models import MovementUserAssociation as MUA, Signal
+from gridt.basetest import BaseTest
+from gridt.models import MovementUserAssociation as MUA, Signal
 from .leader import send_signal
 
 

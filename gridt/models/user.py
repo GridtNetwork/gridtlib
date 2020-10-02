@@ -7,7 +7,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from passlib.apps import custom_app_context as pwd_context
 import hashlib
 
-from db import Base
+from gridt.db import Base
 from .movement_user_association import MovementUserAssociation
 
 

@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, or_, func
 from sqlalchemy.orm import relationship, object_session
 from sqlalchemy.ext.associationproxy import association_proxy
 
-from db import Base
+from gridt.db import Base
 from .signal import Signal
 from .movement_user_association import MovementUserAssociation
 from .user import User

@@ -1,8 +1,8 @@
 from contextlib import contextmanager
 from sqlalchemy import not_
 from sqlalchemy.orm.query import Query
-from db import Session
-from models import User, MovementUserAssociation, Movement
+from gridt.db import Session
+from gridt.models import User, MovementUserAssociation, Movement
 
 
 @contextmanager

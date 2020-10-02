@@ -1,9 +1,9 @@
 from datetime import datetime
 from freezegun import freeze_time
-from basetest import BaseTest
+from gridt.basetest import BaseTest
 from .helpers import leaders
 from .movements import subscribe, remove_user_from_movement
-from models import User, Movement, MovementUserAssociation
+from gridt.models import User, Movement, MovementUserAssociation
 
 
 class TestMovements(BaseTest):

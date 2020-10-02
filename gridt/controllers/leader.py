@@ -1,5 +1,5 @@
 from .helpers import session_scope
-from models import Signal, Movement, User
+from gridt.models import Signal, Movement, User
 
 
 def send_signal(leader_id: int, movement_id: int, message: str = None):

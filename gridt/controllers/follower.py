@@ -1,7 +1,7 @@
 import random
 from sqlalchemy import desc
 from .helpers import session_scope, possible_leaders
-from models import User, Movement, MovementUserAssociation, Signal
+from gridt.models import User, Movement, MovementUserAssociation, Signal
 
 
 def get_subscriptions(user_id: int) -> list:

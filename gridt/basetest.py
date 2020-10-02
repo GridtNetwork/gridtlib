@@ -3,8 +3,8 @@ from unittest import TestCase
 import lorem
 import random
 from sqlalchemy import create_engine
-from db import Session, Base
-from models import User, Movement
+from gridt.db import Session, Base
+from gridt.models import User, Movement
 
 
 class BaseTest(TestCase):

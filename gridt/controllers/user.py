@@ -1,5 +1,5 @@
 from .helpers import session_scope
-from models import User
+from gridt.models import User
 import jwt
 from util.email_templates import (
     send_password_reset_email,

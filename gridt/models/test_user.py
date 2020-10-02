@@ -1,7 +1,7 @@
 import jwt
 from freezegun import freeze_time
-from basetest import BaseTest
-from models import User
+from gridt.basetest import BaseTest
+from gridt.models import User
 
 
 class UnitTestUser(BaseTest):

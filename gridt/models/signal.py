@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, ForeignKey, DateTime, String, desc
 from sqlalchemy.orm import relationship
-from db import Base
+from gridt.db import Base
 
 
 class Signal(Base):

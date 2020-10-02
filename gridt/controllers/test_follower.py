@@ -1,7 +1,7 @@
 import unittest
-from basetest import BaseTest
+from gridt.basetest import BaseTest
 from .helpers import leaders
-from models import User, Movement, MovementUserAssociation
+from gridt.models import User, Movement, MovementUserAssociation
 from .follower import swap_leader
 
 

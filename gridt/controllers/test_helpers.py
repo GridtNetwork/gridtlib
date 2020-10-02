@@ -1,5 +1,5 @@
-from basetest import BaseTest
-from models import User, MovementUserAssociation, Movement
+from gridt.basetest import BaseTest
+from gridt.models import User, MovementUserAssociation, Movement
 from .helpers import leaders, possible_leaders, leaderless
 
 

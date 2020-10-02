@@ -1,4 +1,4 @@
-from basetest import BaseTest
+from gridt.basetest import BaseTest
 from . import MovementUserAssociation, Movement
 
 
