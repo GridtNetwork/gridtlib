@@ -4,6 +4,9 @@
 
 from setuptools import setup, find_packages
 
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
 requirements = [
     "passlib",
     "pyjwt",
@@ -17,6 +20,8 @@ setup(
     author="Robin A. Dorstijn",
     author_email='info@gridt.org',
     python_requires='>=3.5',
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
