@@ -48,7 +48,17 @@ class MovementUserAssociation(Base):
         self.destroyed = None
 
     def __repr__(self):
-        return f"<Association id={self.id} {self.follower}->{self.leader} in {self.movement}{'x' if self.destroyed else ''}>"
+        graph_string = f"{self.follower_id}"
+        if self.destroyed:
+            graph_string += "X"
+        if self.leader_id:
+            graph_string += f"->{self.leader_id}"
+        movement_id = self.movement_id
+        return (
+            f"<Association id={self.id} "
+            f"movement={movement_id} "
+            f"{graph_string} >"
+        )
 
     def destroy(self):
         """

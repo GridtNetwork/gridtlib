@@ -61,7 +61,7 @@ class User(Base):
             .filter(
                 MovementUserAssociation.movement_id == Movement.id,
                 MovementUserAssociation.follower_id == self.id,
-                MovementUserAssociation.destroyed is None,
+                MovementUserAssociation.destroyed.is_(None),
             )
             .group_by(Movement.id)
             .all()
