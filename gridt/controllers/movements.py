@@ -1,6 +1,12 @@
 import random
 from itertools import chain
-from .helpers import session_scope, leaders, leaderless, possible_leaders
+from .helpers import (
+    session_scope,
+    leaders,
+    leaderless,
+    possible_leaders,
+    find_last_signal,
+)
 from gridt.models import Movement, User, MovementUserAssociation
 
 
@@ -19,15 +25,38 @@ def new_movement(
         session.add(movement)
 
 
-def get_movement(identifier):
+def get_movement(movement_identifier, user_id):
     with session_scope() as session:
         try:
-            identifier = int(identifier)
-            movement = session.query(Movement).get(identifier)
+            movement_identifier = int(movement_identifier)
+            movement = session.query(Movement).get(movement_identifier)
+            user = session.query(User).get(user_id)
         except ValueError:
-            movement = Movement.filter_by(name=identifier).one()
+            movement = Movement.filter_by(name=movement_identifier).one()
 
-        return movement.dictify()
+        movement_json = movement.to_json()
+        movement_json["subscribed"] = False
+        if user in movement.active_users:
+            movement_json["subscribed"] = True
+
+            last_signal = find_last_signal(user, movement, session)
+            movement_json["last_signal_sent"] = (
+                {"time_stamp": str(last_signal.time_stamp.astimezone())}
+                if last_signal
+                else None
+            )
+
+            movement_json["leaders"] = []
+            for leader in leaders(user, movement, session):
+                leader_json = leader.to_json()
+
+                last_signal = find_last_signal(leader, movement, session)
+                if last_signal:
+                    leader_json.update(last_signal=last_signal.to_json())
+
+                movement_json["leaders"].append(leader_json)
+
+        return movement_json
 
 
 def subscribe(user_id, movement_id):
@@ -70,25 +99,23 @@ def remove_user_from_movement(user_id: int, movement: int):
         user = session.query(User).get(user_id)
         movement = session.query(Movement).get(movement)
 
-        leader_muas_to_destroy = (
-            session.query(MovementUserAssociation)
-            .filter(
-                MovementUserAssociation.movement_id == movement.id,
-                MovementUserAssociation.destroyed.is_(None),
-                MovementUserAssociation.leader_id == user.id,
-            )
+        leader_muas_to_destroy = session.query(MovementUserAssociation).filter(
+            MovementUserAssociation.movement_id == movement.id,
+            MovementUserAssociation.destroyed.is_(None),
+            MovementUserAssociation.leader_id == user.id,
         )
 
-        follower_muas_to_destroy = (
-            session.query(MovementUserAssociation)
-            .filter(
-                MovementUserAssociation.movement_id == movement.id,
-                MovementUserAssociation.destroyed.is_(None),
-                MovementUserAssociation.follower_id == user.id,
-            )
+        follower_muas_to_destroy = session.query(
+            MovementUserAssociation
+        ).filter(
+            MovementUserAssociation.movement_id == movement.id,
+            MovementUserAssociation.destroyed.is_(None),
+            MovementUserAssociation.follower_id == user.id,
         )
 
-        for mua in set(chain(follower_muas_to_destroy, leader_muas_to_destroy)):
+        for mua in set(
+            chain(follower_muas_to_destroy, leader_muas_to_destroy)
+        ):
             mua.destroy()
 
         session.commit()

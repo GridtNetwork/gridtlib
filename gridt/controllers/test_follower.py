@@ -40,8 +40,8 @@ class FollowerIntegrationTest(BaseTest):
         self.session.add_all([user4, user5, assoc1, assoc2, assoc3, assoc4])
         self.session.commit()
 
-        user4_dict = user4.dictify()
-        user5_dict = user5.dictify()
+        user4_dict = user4.to_json()
+        user5_dict = user5.to_json()
 
         # Will not catch possible mistake:
         #   (movement.swap_leader(..., ...) == user3)
@@ -106,7 +106,7 @@ class FollowerIntegrationTest(BaseTest):
         # Make sure that it is actually saved in the database!
         self.session.rollback()
         self.session.add(user3)
-        self.assertEqual(new_leader, user3.dictify())
+        self.assertEqual(new_leader, user3.to_json())
 
         self.session.add_all([user1, movement2, user5])
         self.assertIsNone(swap_leader(user1.id, movement2.id, user5.id))

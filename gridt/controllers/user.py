@@ -74,4 +74,4 @@ def register(username: str, email: str, password: str):
 def get_identity(user_id: int):
     with session_scope() as session:
         user = session.query(User).get(user_id)
-        return user.dictify(include_email=True)
+        return user.to_json(include_email=True)

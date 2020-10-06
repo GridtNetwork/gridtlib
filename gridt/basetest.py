@@ -4,7 +4,7 @@ import lorem
 import random
 from sqlalchemy import create_engine
 from gridt.db import Session, Base
-from gridt.models import User, Movement
+from .models import User, Movement
 
 
 class BaseTest(TestCase):

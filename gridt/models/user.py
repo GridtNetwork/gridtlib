@@ -115,7 +115,7 @@ class User(Base):
         )
         return token
 
-    def dictify(self, include_email=False):
+    def to_json(self, include_email=False):
         res = {
             "id": self.id,
             "username": self.username,

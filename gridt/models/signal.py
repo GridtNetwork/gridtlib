@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, String, desc
+from sqlalchemy import Column, Integer, ForeignKey, DateTime, String
 from sqlalchemy.orm import relationship
 from gridt.db import Base
 
@@ -26,33 +26,10 @@ class Signal(Base):
     def __init__(self, leader, movement, message=None):
         self.leader = leader
         self.movement = movement
-        self.time_stamp = self._get_now()
+        self.time_stamp = datetime.now()
         self.message = message
 
-    @classmethod
-    def find_last(cls, user, movement, n=1):
-        return (
-            cls.query.filter_by(leader=user, movement=movement)
-            .order_by(desc("time_stamp"))
-            .first()
-        )
-
-    @classmethod
-    def get_signal_history(cls, user, movement, n):
-        return (
-            cls.query.filter_by(leader=user, movement=movement)
-            .order_by(desc("time_stamp"))
-            .limit(n)
-            .all()
-        )
-
-    def _get_now(self):
-        """
-        Useful for patching in tests.
-        """
-        return datetime.now()
-
-    def dictify(self):
+    def to_json(self):
         signal_dict = {
             "time_stamp": str(self.time_stamp.astimezone()),
         }

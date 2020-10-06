@@ -1,8 +1,8 @@
 from contextlib import contextmanager
-from sqlalchemy import not_
+from sqlalchemy import not_, desc
 from sqlalchemy.orm.query import Query
 from gridt.db import Session
-from gridt.models import User, MovementUserAssociation, Movement
+from gridt.models import User, MovementUserAssociation, Movement, Signal
 
 
 @contextmanager
@@ -56,9 +56,7 @@ def possible_leaders(
             not_(User.id == user.id),
             not_(
                 User.id.in_(
-                    leaders(user, movement, session).with_entities(
-                        User.id
-                    )
+                    leaders(user, movement, session).with_entities(User.id)
                 )
             ),
             MovementUserAssociation.movement_id == movement.id,
@@ -67,6 +65,7 @@ def possible_leaders(
     )
 
 
+# Slated for removal
 def leaderless(user: User, movement: Movement, session: Session) -> Query:
     """
     Find the active users in this movement
@@ -84,8 +83,18 @@ def leaderless(user: User, movement: Movement, session: Session) -> Query:
     )
 
     available_leaderless = movement.leaderless.filter(
-        not_(User.id == user.id),
-        not_(User.id.in_(leader_associations))
+        not_(User.id == user.id), not_(User.id.in_(leader_associations))
     )
 
     return available_leaderless
+
+
+def find_last_signal(
+    user: User, movement: Movement, session: Session, n: int = 1
+) -> Signal:
+    return (
+        session.query(Signal)
+        .filter_by(leader=user, movement=movement)
+        .order_by(desc("time_stamp"))
+        .first()
+    )

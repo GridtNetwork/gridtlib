@@ -22,6 +22,24 @@ class UnitTestMovement(BaseTest):
         )
         self.assertEqual(movement2.description, "")
 
+    def test_to_json(self):
+        movement = Movement(
+            "movement1",
+            "daily",
+            short_description="Hi",
+            description="A long description",
+        )
+        self.session.add(movement)
+        self.session.commit()
+        expected = {
+            "id": 1,
+            "name": "movement1",
+            "short_description": "Hi",
+            "description": "A long description",
+            "interval": "daily",
+        }
+        self.assertEqual(movement.to_json(), expected)
+
 
 class IntegrationTestUser(BaseTest):
     def test_active_users(self):

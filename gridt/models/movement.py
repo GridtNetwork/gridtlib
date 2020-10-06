@@ -107,49 +107,15 @@ class Movement(Base):
             .group_by(MUA.follower_id)
         )
 
-    def dictify(self, user):
-        """
-        Return a dict version of this movement, ready for shipping to JSON.
-
-        :param user: The user that requests the information.
-        """
-        movement_dict = {
+    def to_json(self):
+        """Jsonify this movement."""
+        return {
             "name": self.name,
             "id": self.id,
             "short_description": self.short_description,
             "description": self.description,
             "interval": self.interval,
         }
-
-        movement_dict["subscribed"] = False
-        if user in self.current_users:
-            movement_dict["subscribed"] = True
-
-            last_signal = Signal.find_last(user, self)
-            movement_dict["last_signal_sent"] = (
-                {"time_stamp": str(last_signal.time_stamp.astimezone())}
-                if last_signal
-                else None
-            )
-
-            # Extend the user dictionary with the last signal
-            movement_dict["leaders"] = [
-                dict(
-                    leader.dictify(),
-                    **(
-                        {
-                            "last_signal": Signal.find_last(
-                                leader, self
-                            ).dictify()
-                        }
-                        if Signal.find_last(leader, self)
-                        else {}
-                    ),
-                )
-                for leader in user.leaders(self)
-            ]
-
-        return movement_dict
 
     def __repr__(self):
         return f"<Movement name={self.name}>"

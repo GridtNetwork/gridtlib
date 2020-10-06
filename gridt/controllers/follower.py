@@ -10,7 +10,7 @@ def get_subscriptions(user_id: int) -> list:
         user = session.query(User).get(user_id)
         current_movements = user.current_movements
         return [
-            movement.dictify(user) for movement in current_movements
+            movement.to_json(user) for movement in current_movements
         ]
 
 
@@ -47,7 +47,7 @@ def swap_leader(follower_id: int, movement_id: int, leader_id: int) -> dict:
         new_assoc = MovementUserAssociation(movement, follower, new_leader)
         session.add(new_assoc)
 
-        leader_dict = new_leader.dictify()
+        leader_dict = new_leader.to_json()
 
         last_signal = session.query(Signal).filter_by(
             leader=new_leader,
