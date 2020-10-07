@@ -1,5 +1,6 @@
 import jwt
-from .helpers import session_scope
+from .helpers import session_scope, load_user
+from gridt.exc import UserNotFoundError
 from gridt.models import User
 from gridt.util.email_templates import (
     send_password_reset_email,
@@ -7,7 +8,18 @@ from gridt.util.email_templates import (
 )
 
 
-def update_user_bio(user_id: int, bio: str):
+def user_exists(user_id: int) -> bool:
+    """Ensure the users exists."""
+    with session_scope() as session:
+        try:
+            load_user(user_id, session)
+        except UserNotFoundError:
+            return False
+        return True
+
+
+def update_user_bio(user_id: int, bio: str) -> None:
+    """Set the bio of user to provided bio."""
     with session_scope() as session:
         user = session.query(User).get(user_id)
         user.bio = bio

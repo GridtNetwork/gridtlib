@@ -1,6 +1,9 @@
+from datetime import datetime
+from freezegun import freeze_time
 from gridt.basetest import BaseTest
 from gridt.models import User, MovementUserAssociation, Movement
-from .helpers import leaders, possible_leaders, leaderless
+from .helpers import leaders, possible_leaders, leaderless, find_last_signal
+from .leader import send_signal
 
 
 class HelperIntegrationTest(BaseTest):
@@ -23,9 +26,7 @@ class HelperIntegrationTest(BaseTest):
         self.session.add_all([user1, user2, user3, assoc1, assoc2, assoc3])
         self.session.commit()
 
-        self.assertEqual(
-            len(list(leaders(user1, movement, self.session))), 2
-        )
+        self.assertEqual(len(list(leaders(user1, movement, self.session))), 2)
         self.assertEqual(
             set(leaders(user1, movement, self.session)),
             set([user2, user3]),
@@ -56,9 +57,7 @@ class HelperIntegrationTest(BaseTest):
         )
         self.session.commit()
 
-        self.assertEqual(
-            len(list(leaders(user1, movement, self.session))), 2
-        )
+        self.assertEqual(len(list(leaders(user1, movement, self.session))), 2)
         self.assertEqual(
             set(leaders(movement, user1, self.session)),
             set([user2, user3]),
@@ -212,3 +211,50 @@ class HelperIntegrationTest(BaseTest):
             set(leaderless(users[0], movement2, self.session)),
             set(users[1:4]),
         )
+
+
+class FindSignalTest(BaseTest):
+    def test_find_signal(self):
+        user1 = self.create_user()
+        user2 = self.create_user()
+        movement1 = self.create_movement()
+        movement2 = self.create_movement()
+        assoc1 = MovementUserAssociation(movement1, user1)
+        assoc2 = MovementUserAssociation(movement1, user2)
+        assoc3 = MovementUserAssociation(movement2, user1)
+        assoc4 = MovementUserAssociation(movement2, user2)
+        self.session.add_all(
+            [
+                user1,
+                user2,
+                movement1,
+                movement2,
+                assoc1,
+                assoc2,
+                assoc3,
+                assoc4,
+            ]
+        )
+        self.session.commit()
+        u1_id = user1.id
+        u2_id = user2.id
+        m1_id = movement1.id
+        m2_id = movement2.id
+
+        dates = [datetime(1996, 3, day) for day in range(15, 30)]
+        with freeze_time(dates[0]):
+            send_signal(u1_id, m1_id)
+        with freeze_time(dates[1]):
+            send_signal(u1_id, m2_id)
+        with freeze_time(dates[2]):
+            send_signal(u1_id, m1_id)
+        with freeze_time(dates[3]):
+            send_signal(u2_id, m2_id)
+        with freeze_time(dates[4]):
+            send_signal(u2_id, m1_id)
+        with freeze_time(dates[5]):
+            send_signal(u2_id, m1_id)
+
+        self.session.add_all([user1, movement1])
+        signal = find_last_signal(user1, movement1, self.session)
+        self.assertEqual(signal.time_stamp, dates[2])

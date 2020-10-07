@@ -27,3 +27,15 @@ class LeaderControllersTest(BaseTest):
 
         with self.assertRaises(AssertionError):
             send_signal(user1.id, movement1.id, "Test.")
+
+    def test_send_signal_commit(self):
+        user1 = self.create_user()
+        movement1 = self.create_movement()
+        assoc = MUA(movement1, user1)
+        self.session.add(assoc)
+        self.session.commit()
+        send_signal(user1.id, movement1.id)
+
+        self.session.add_all([user1, movement1])
+        signal = self.session.query(Signal).get(1)
+        self.assertIsNotNone(signal)

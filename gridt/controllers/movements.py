@@ -5,99 +5,107 @@ from .helpers import (
     leaders,
     leaderless,
     possible_leaders,
-    find_last_signal,
+    extend_movement_json,
+    load_user,
+    load_movement,
 )
-from gridt.models import Movement, User, MovementUserAssociation
+from gridt.models import Movement, MovementUserAssociation
+from gridt.exc import MovementNotFoundError
 
 
-def all_movements():
+def get_all_movements(user_id):
+    """Get all movements."""
     with session_scope() as session:
-        return session.query(Movement).all()
-
-
-def new_movement(
-    user_id, name, interval, short_description=None, description=None
-):
-    with session_scope() as session:
-        user = session.query(User).get(user_id)
-        movement = Movement(name, interval, short_description, description)
-        movement.add_user(user)
-        session.add(movement)
+        user = load_user(user_id, session)
+        return [
+            extend_movement_json(movement, user, session)
+            for movement in session.query(Movement)
+        ]
 
 
 def get_movement(movement_identifier, user_id):
+    """Get a movement."""
     with session_scope() as session:
         try:
             movement_identifier = int(movement_identifier)
-            movement = session.query(Movement).get(movement_identifier)
-            user = session.query(User).get(user_id)
+            movement = load_movement(movement_identifier, session)
         except ValueError:
-            movement = Movement.filter_by(name=movement_identifier).one()
-
-        movement_json = movement.to_json()
-        movement_json["subscribed"] = False
-        if user in movement.active_users:
-            movement_json["subscribed"] = True
-
-            last_signal = find_last_signal(user, movement, session)
-            movement_json["last_signal_sent"] = (
-                {"time_stamp": str(last_signal.time_stamp.astimezone())}
-                if last_signal
-                else None
+            movement = (
+                session.query(Movement)
+                .filter_by(name=movement_identifier)
+                .one()
             )
 
-            movement_json["leaders"] = []
-            for leader in leaders(user, movement, session):
-                leader_json = leader.to_json()
+        user = load_user(user_id, session)
+        return extend_movement_json(movement, user, session)
 
-                last_signal = find_last_signal(leader, movement, session)
-                if last_signal:
-                    leader_json.update(last_signal=last_signal.to_json())
 
-                movement_json["leaders"].append(leader_json)
+def new_movement(
+    user_id: int,
+    name: str,
+    interval: str,
+    short_description: str = None,
+    description: str = None,
+):
+    """Create a new movement."""
+    with session_scope() as session:
+        user = load_user(user_id, session)
+        movement = Movement(name, interval, short_description, description)
+        _subscribe(user, movement, session)
+        session.add(movement)
 
-        return movement_json
+
+def _subscribe(user, movement, session):
+    """
+    Add a user to the movement.
+
+    The logic of this function is required by both "gridt.controllers.movement
+    .new_movement" and "gridt.controllers.movement.subscribe", therefore the
+    logic was extracted in this function.
+    """
+    while leaders(user, movement, session).count() < 4:
+        pos_leaders = possible_leaders(user, movement, session).all()
+        if pos_leaders:
+            assoc = MovementUserAssociation(movement, user)
+            assoc.leader = random.choice(pos_leaders)
+            session.add(assoc)
+        else:
+            if leaders(user, movement, session).count() == 0:
+                assoc = MovementUserAssociation(movement, user, None)
+                session.add(assoc)
+            break
+
+    for new_follower in leaderless(user, movement, session):
+        association = MovementUserAssociation(movement, new_follower, user)
+        session.add(association)
+
+        assoc_none = (
+            session.query(MovementUserAssociation)
+            .filter(
+                MovementUserAssociation.movement_id == movement.id,
+                MovementUserAssociation.follower_id == new_follower.id,
+                MovementUserAssociation.leader_id.is_(None),
+            )
+            .group_by(MovementUserAssociation.follower_id)
+            .all()
+        )
+        for a in assoc_none:
+            a.destroy()
 
 
 def subscribe(user_id, movement_id):
+    """Subscribe user to a movement."""
     with session_scope() as session:
-        user = session.query(User).get(user_id)
-        movement = session.query(Movement).get(movement_id)
+        user = load_user(user_id, session)
+        movement = load_movement(movement_id, session)
 
-        while leaders(user, movement, session).count() < 4:
-            pos_leaders = possible_leaders(user, movement, session).all()
-            if pos_leaders:
-                assoc = MovementUserAssociation(movement, user)
-                assoc.leader = random.choice(pos_leaders)
-                session.add(assoc)
-            else:
-                if leaders(user, movement, session).count() == 0:
-                    assoc = MovementUserAssociation(movement, user, None)
-                    session.add(assoc)
-                break
-
-        for new_follower in leaderless(user, movement, session):
-            association = MovementUserAssociation(movement, new_follower, user)
-            session.add(association)
-
-            assoc_none = (
-                session.query(MovementUserAssociation)
-                .filter(
-                    MovementUserAssociation.movement_id == movement.id,
-                    MovementUserAssociation.follower_id == new_follower.id,
-                    MovementUserAssociation.leader_id.is_(None),
-                )
-                .group_by(MovementUserAssociation.follower_id)
-                .all()
-            )
-            for a in assoc_none:
-                a.destroy()
+        _subscribe(user, movement, session)
 
 
 def remove_user_from_movement(user_id: int, movement: int):
     with session_scope() as session:
-        user = session.query(User).get(user_id)
-        movement = session.query(Movement).get(movement)
+        user = load_user(user_id, session)
+        movement = load_movement(movement, session)
 
         leader_muas_to_destroy = session.query(MovementUserAssociation).filter(
             MovementUserAssociation.movement_id == movement.id,
@@ -132,3 +140,20 @@ def remove_user_from_movement(user_id: int, movement: int):
             else:
                 new_mua = MovementUserAssociation(movement, mua.follower, None)
                 session.add(new_mua)
+
+
+def movement_exists(movement_id):
+    with session_scope() as session:
+        try:
+            load_movement(movement_id, session)
+        except MovementNotFoundError:
+            return False
+        return True
+
+
+def user_in_movement(user_id, movement_id):
+    with session_scope() as session:
+        user = load_user(user_id, session)
+        movement = load_movement(movement_id, session)
+
+        return user in movement.active_users
