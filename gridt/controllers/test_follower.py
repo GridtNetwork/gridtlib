@@ -1,15 +1,77 @@
-import unittest
+from freezegun import freeze_time
+from unittest.mock import patch
 from gridt.basetest import BaseTest
 from .helpers import leaders
-from gridt.models import User, Movement, MovementUserAssociation
-from .follower import swap_leader
+from gridt.models import User, Movement, MovementUserAssociation as MUA
+from .follower import swap_leader, get_leader
+from .leader import send_signal
 
 
-class FollowerIntegrationTest(BaseTest):
-    @unittest.skip
-    def test_get_subscriptions(self):
-        pass
+class GetLeaderTest(BaseTest):
+    @patch(
+        "gridt.controllers.follower.User.get_email_hash",
+        return_value="email_hash",
+    )
+    def test_get_leader(self, avatar_func):
+        """
+        movement1:
+            l2 <- f -> l1
+        movement2:
+            l2 -> 1 -> l1
+        """
+        self.maxDiff = None
+        follower = self.create_user()
+        leader1 = self.create_user()
+        leader2 = self.create_user()
+        movement1 = self.create_movement()
+        movement2 = self.create_movement()
+        self.session.add_all(
+            [
+                MUA(movement1, follower, leader1),
+                MUA(movement1, follower, leader2),
+                MUA(movement2, follower, leader1),
+                MUA(movement2, leader2, follower),
+            ]
+        )
+        self.session.commit()
 
+        l1_id = leader1.id
+        l1_name = leader1.username
+        l2_id = leader2.id
+        f_id = follower.id
+        m1_id = movement1.id
+        m2_id = movement2.id
+
+        with freeze_time("1995-01-15 12:00:00+01:00", tz_offset=1):
+            send_signal(l1_id, m1_id, "Message1")
+            send_signal(l1_id, m2_id, "Message2")
+            send_signal(l2_id, m1_id, "Message3")
+        with freeze_time("1996-03-15 12:00:00+01:00", tz_offset=1):
+            send_signal(l1_id, m1_id, "Message4")
+
+        leader = get_leader(f_id, m1_id, l1_id)
+        self.assertEqual(
+            leader,
+            {
+                "id": l1_id,
+                "bio": "",
+                "avatar": "email_hash",
+                "username": l1_name,
+                "message_history": [
+                    {
+                        "message": "Message4",
+                        "time_stamp": "1996-03-15 12:00:00+01:00",
+                    },
+                    {
+                        "message": "Message1",
+                        "time_stamp": "1995-01-15 12:00:00+01:00",
+                    },
+                ],
+            },
+        )
+
+
+class SwapTest(BaseTest):
     def test_swap(self):
         """
         movement1:
@@ -25,8 +87,8 @@ class FollowerIntegrationTest(BaseTest):
         self.session.add_all([user1, user2, user3, movement])
         self.session.commit()
 
-        assoc1 = MovementUserAssociation(movement, user1, user2)
-        assoc2 = MovementUserAssociation(movement, user2, user1)
+        assoc1 = MUA(movement, user1, user2)
+        assoc2 = MUA(movement, user2, user1)
         self.session.commit()
 
         self.assertFalse(swap_leader(user1.id, movement.id, user2.id))
@@ -34,8 +96,8 @@ class FollowerIntegrationTest(BaseTest):
 
         user4 = User("user4", "test4@test.com", "password")
         user5 = User("user5", "test5@test.com", "password")
-        assoc3 = MovementUserAssociation(movement, user4, None)
-        assoc4 = MovementUserAssociation(movement, user5, None)
+        assoc3 = MUA(movement, user4, None)
+        assoc4 = MUA(movement, user5, None)
         self.session.add_all([user1, user2, user3, movement])
         self.session.add_all([user4, user5, assoc1, assoc2, assoc3, assoc4])
         self.session.commit()
@@ -77,12 +139,12 @@ class FollowerIntegrationTest(BaseTest):
         movement1 = Movement("movement1", "daily")
         movement2 = Movement("movement2", "daily")
 
-        assoc1 = MovementUserAssociation(movement1, user1, user2)
-        assoc2 = MovementUserAssociation(movement1, user2, user1)
-        assoc3 = MovementUserAssociation(movement1, user3, user1)
-        assoc4 = MovementUserAssociation(movement1, user1, user4)
-        assoc5 = MovementUserAssociation(movement2, user1, user5)
-        assoc6 = MovementUserAssociation(movement2, user5, user1)
+        assoc1 = MUA(movement1, user1, user2)
+        assoc2 = MUA(movement1, user2, user1)
+        assoc3 = MUA(movement1, user3, user1)
+        assoc4 = MUA(movement1, user1, user4)
+        assoc5 = MUA(movement2, user1, user5)
+        assoc6 = MUA(movement2, user5, user1)
 
         self.session.add_all(
             [
