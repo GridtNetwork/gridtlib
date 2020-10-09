@@ -110,9 +110,7 @@ def extend_movement_json(movement, user, session):
 
         last_signal = find_last_signal(user, movement, session)
         movement_json["last_signal_sent"] = (
-            {"time_stamp": str(last_signal.time_stamp.astimezone())}
-            if last_signal
-            else None
+            last_signal.to_json() if last_signal else None
         )
 
         movement_json["leaders"] = []

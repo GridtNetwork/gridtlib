@@ -41,7 +41,7 @@ class User(Base):
 
     follower_associations = relationship(
         "MovementUserAssociation",
-        foreign_keys="MovementUserAssociation.follower_id"
+        foreign_keys="MovementUserAssociation.follower_id",
     )
 
     movements = association_proxy(
@@ -56,7 +56,8 @@ class User(Base):
         from .movement import Movement
 
         return (
-            object_session(self).query(Movement)
+            object_session(self)
+            .query(Movement)
             .join(MovementUserAssociation)
             .filter(
                 MovementUserAssociation.movement_id == Movement.id,
@@ -111,6 +112,28 @@ class User(Base):
         payload = {"user_id": self.id, "exp": exp}
 
         token = jwt.encode(payload, secret_key, algorithm="HS256").decode(
+            "utf-8"
+        )
+        return token
+
+    def get_email_change_token(self, new_email, secret_key):
+        """
+        Make a dictionary containing the user's id, new email
+        + an expiration timestamp such that the token is valid for 2 hours
+        and encodes it into a JWT.
+        :param str new_email: The new e-mail that needs to be verified.
+        :rtype str: the JWT that is used to verify the e-mail change.
+        """
+        now = datetime.datetime.now()
+        valid = datetime.timedelta(hours=2)
+        exp = now + valid
+        exp = exp.timestamp()
+
+        secret_key = secret_key
+
+        token_dict = {"user_id": self.id, "new_email": new_email, "exp": exp}
+
+        token = jwt.encode(token_dict, secret_key, algorithm="HS256").decode(
             "utf-8"
         )
         return token

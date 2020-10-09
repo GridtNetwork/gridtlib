@@ -19,7 +19,6 @@ class GetLeaderTest(BaseTest):
         movement2:
             l2 -> 1 -> l1
         """
-        self.maxDiff = None
         follower = self.create_user()
         leader1 = self.create_user()
         leader2 = self.create_user()

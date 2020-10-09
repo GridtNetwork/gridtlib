@@ -1,3 +1,4 @@
+from unittest import skip
 import jwt
 from freezegun import freeze_time
 from gridt.basetest import BaseTest
@@ -29,6 +30,10 @@ class UnitTestUser(BaseTest):
         self.assertEqual(
             user.get_email_hash(), "b642b4217b34b1e8d3bd915fc65c4452"
         )
+
+    @skip
+    def test_get_change_email_token(self):
+        pass
 
     def test_get_password_reset_token(self):
         user = self.create_user()
