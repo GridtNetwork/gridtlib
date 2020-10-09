@@ -2,7 +2,12 @@ from datetime import datetime
 from freezegun import freeze_time
 from gridt.basetest import BaseTest
 from gridt.models import User, MovementUserAssociation, Movement
-from .helpers import leaders, possible_leaders, leaderless, find_last_signal
+from .helpers import (
+    leaders,
+    possible_leaders,
+    possible_followers,
+    find_last_signal,
+)
 from .leader import send_signal
 
 
@@ -174,22 +179,24 @@ class HelperIntegrationTest(BaseTest):
         self.session.commit()
 
         self.assertEqual(
-            set(leaderless(users[0], movement1, self.session)),
+            set(possible_followers(users[0], movement1, self.session)),
             set(users[3:]),
         )
         self.assertEqual(
-            set(leaderless(users[0], movement2, self.session)), set(users[1:4])
+            set(possible_followers(users[0], movement2, self.session)),
+            set(users[1:4]),
         )
 
         mua1 = self.session.query(MUA).filter(MUA.id == 1).one()
         mua1.destroy()
 
         self.assertEqual(
-            set(leaderless(users[0], movement1, self.session)),
+            set(possible_followers(users[0], movement1, self.session)),
             set(users[3:]),
         )
         self.assertEqual(
-            set(leaderless(users[0], movement2, self.session)), set(users[1:4])
+            set(possible_followers(users[0], movement2, self.session)),
+            set(users[1:4]),
         )
 
         mua2 = (
@@ -204,11 +211,11 @@ class HelperIntegrationTest(BaseTest):
         mua2.destroy()
 
         self.assertEqual(
-            set(leaderless(users[0], movement1, self.session)),
+            set(possible_followers(users[0], movement1, self.session)),
             set([users[3], users[4], users[5]]),
         )
         self.assertEqual(
-            set(leaderless(users[0], movement2, self.session)),
+            set(possible_followers(users[0], movement2, self.session)),
             set(users[1:4]),
         )
 

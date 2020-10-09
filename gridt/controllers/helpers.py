@@ -66,8 +66,9 @@ def possible_leaders(
     )
 
 
-# Slated for removal
-def leaderless(user: User, movement: Movement, session: Session) -> Query:
+def possible_followers(
+    user: User, movement: Movement, session: Session
+) -> Query:
     """
     Find the active users in this movement
     (movement.current_users) that have fewer than four leaders,
@@ -117,9 +118,9 @@ def extend_movement_json(movement, user, session):
         for leader in leaders(user, movement, session):
             leader_json = leader.to_json()
 
-            last_signal = find_last_signal(leader, movement, session)
-            if last_signal:
-                leader_json.update(last_signal=last_signal.to_json())
+            last_leader_signal = find_last_signal(leader, movement, session)
+            if last_leader_signal:
+                leader_json.update(last_signal=last_leader_signal.to_json())
 
             movement_json["leaders"].append(leader_json)
     return movement_json

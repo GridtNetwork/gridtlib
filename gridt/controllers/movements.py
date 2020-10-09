@@ -3,7 +3,7 @@ from itertools import chain
 from .helpers import (
     session_scope,
     leaders,
-    leaderless,
+    possible_followers,
     possible_leaders,
     extend_movement_json,
     load_user,
@@ -75,7 +75,7 @@ def _subscribe(user, movement, session):
                 session.add(assoc)
             break
 
-    for new_follower in leaderless(user, movement, session):
+    for new_follower in possible_followers(user, movement, session):
         association = MovementUserAssociation(movement, new_follower, user)
         session.add(association)
 

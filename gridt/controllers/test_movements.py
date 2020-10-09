@@ -139,6 +139,9 @@ class GetMovementTest(BaseTest):
             "interval": "daily",
             "subscribed": True,
             "leaders": [user_dict],
-            "last_signal_sent": {"time_stamp": "1996-03-15 08:00:00+01:00"},
+            "last_signal_sent": {
+                "time_stamp": "1996-03-15 08:00:00+01:00",
+                "message": "This is a message"
+            },
         }
         self.assertEqual(get_movement(movement.id, user2.id), expected)
