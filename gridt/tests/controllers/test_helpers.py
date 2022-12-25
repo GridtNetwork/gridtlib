@@ -1,14 +1,14 @@
 from datetime import datetime
 from freezegun import freeze_time
-from gridt.basetest import BaseTest
+from gridt.tests.basetest import BaseTest
 from gridt.models import User, MovementUserAssociation, Movement
-from .helpers import (
+from gridt.controllers.helpers import (
     leaders,
     possible_leaders,
     possible_followers,
     find_last_signal,
 )
-from .leader import send_signal
+from ...controllers.leader import send_signal
 
 
 class HelperIntegrationTest(BaseTest):

@@ -1,5 +1,5 @@
-from gridt.basetest import BaseTest
-from . import MovementUserAssociation, Movement
+from gridt.tests.basetest import BaseTest
+from gridt.models import MovementUserAssociation, Movement
 
 
 class UnitTestMovement(BaseTest):

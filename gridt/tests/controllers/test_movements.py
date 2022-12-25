@@ -1,12 +1,12 @@
 from datetime import datetime
 from freezegun import freeze_time
 
-from gridt.basetest import BaseTest
+from gridt.tests.basetest import BaseTest
 from gridt.models import User, Movement, MovementUserAssociation
 
-from .helpers import leaders
-from .leader import send_signal
-from .movements import subscribe, remove_user_from_movement, get_movement
+from gridt.controllers.helpers import leaders
+from gridt.controllers.leader import send_signal
+from gridt.controllers.movements import subscribe, remove_user_from_movement, get_movement
 
 
 class SubscribeTest(BaseTest):

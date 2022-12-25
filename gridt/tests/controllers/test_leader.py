@@ -1,6 +1,6 @@
-from gridt.basetest import BaseTest
+from gridt.tests.basetest import BaseTest
 from gridt.models import MovementUserAssociation as MUA, Signal
-from .leader import send_signal
+from gridt.controllers.leader import send_signal
 
 
 class LeaderControllersTest(BaseTest):

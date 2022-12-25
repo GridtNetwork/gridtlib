@@ -1,10 +1,10 @@
 from freezegun import freeze_time
 from unittest.mock import patch
-from gridt.basetest import BaseTest
-from .helpers import leaders
+from gridt.tests.basetest import BaseTest
+from gridt.controllers.helpers import leaders
 from gridt.models import User, Movement, MovementUserAssociation as MUA
-from .follower import swap_leader, get_leader
-from .leader import send_signal
+from gridt.controllers.follower import swap_leader, get_leader
+from gridt.controllers.leader import send_signal
 
 
 class GetLeaderTest(BaseTest):
@@ -105,7 +105,7 @@ class SwapTest(BaseTest):
         user5_dict = user5.to_json()
 
         # Will not catch possible mistake:
-        #   (movement.swap_leader(..., ...) == user3)
+        #   (movement.swap_leader(gridt., gridt.) == user3)
         # 2/3 of the time
         self.assertIn(
             swap_leader(user2.id, movement.id, user1.id),

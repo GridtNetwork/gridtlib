@@ -1,7 +1,7 @@
 import lorem
-from gridt.basetest import BaseTest
+from gridt.tests.basetest import BaseTest
 
-from .user import update_user_bio
+from gridt.controllers.user import update_user_bio
 
 
 class ChangeBioTest(BaseTest):
