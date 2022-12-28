@@ -4,3 +4,7 @@ class UserNotFoundError(Exception):
 
 class MovementNotFoundError(Exception):
     pass
+
+
+class SubscriptionNotFoundError(Exception):
+    pass

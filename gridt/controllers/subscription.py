@@ -1,5 +1,5 @@
 from gridt.models import Subscription
-from sqlalchemy.orm.query import Query
+import gridt.exc as E 
 from gridt.db import Session
 from .helpers import (
     session_scope,
@@ -8,6 +8,8 @@ from .helpers import (
     extend_movement_json,
 )
 
+from sqlalchemy.orm.query import Query
+from sqlalchemy.orm.exc import NoResultFound
 
 def _get_subscription(user_id: int, movement_id: int, session: Session) -> Query:
     """
@@ -21,15 +23,19 @@ def _get_subscription(user_id: int, movement_id: int, session: Session) -> Query
     Returns:
         Query: A subscription query
     """
-    return (
+    subscriptions = (
         session.query(Subscription)
-        .filter_by(
+        .filter(
             Subscription.user_id == user_id,
             Subscription.movement_id == movement_id,
             Subscription.time_removed.is_(None)
         )
-        .one()
     )
+
+    if not subscriptions.count():
+        raise E.SubscriptionNotFoundError(f"User '{user_id}' is not subscribed to Movement '{movement_id}'.")
+    
+    return subscriptions.one()
 
 
 def is_subscribed(user_id: int, movement_id: int) -> bool:
@@ -46,13 +52,13 @@ def is_subscribed(user_id: int, movement_id: int) -> bool:
     with session_scope() as session:
         try: 
             _get_subscription(user_id, movement_id, session)
-        except:
+        except E.SubscriptionNotFoundError:
             return False
 
     return True
 
 
-def new_subscribtion(user_id: int, movement_id: int) -> dict:
+def new_subscription(user_id: int, movement_id: int) -> dict:
     """
     Creates a new subscription between a user and a movement.
 
@@ -64,8 +70,8 @@ def new_subscribtion(user_id: int, movement_id: int) -> dict:
         dict: json of the new subscription
     """
     with session_scope() as session:
-        user = load_user(user_id)
-        movement = load_movement(movement_id)
+        user = load_user(user_id, session)
+        movement = load_movement(movement_id, session)
         
         subscription = Subscription(user, movement)
         session.add(subscription)
@@ -115,10 +121,10 @@ def new_subscribtion(user_id: int, movement_id: int) -> dict:
             for a in assoc_none:
                 a.destroy()
 
-    return subscription.to_json()
+        return subscription.to_json()
 
 
-def remove_subscribtion(user_id: int, movement_id: int) -> dict:
+def remove_subscription(user_id: int, movement_id: int) -> dict:
     """
     Ends a subscription relation between a user and a movement.
 
@@ -132,6 +138,7 @@ def remove_subscribtion(user_id: int, movement_id: int) -> dict:
     with session_scope() as session:
         subscription = _get_subscription(user_id, movement_id, session)
         subscription.end()
+        session.add(subscription)
 
 
         # TODO: Again, this should be handled by emitting an event
@@ -182,7 +189,7 @@ def remove_subscribtion(user_id: int, movement_id: int) -> dict:
                 new_mua = MovementUserAssociation(movement, mua.follower, None)
                 session.add(new_mua)
 
-    return subscription.to_json()
+        return subscription.to_json()
 
 
 def get_subscribers(movement_id: int) -> list:
@@ -198,7 +205,7 @@ def get_subscribers(movement_id: int) -> list:
     with session_scope() as session:
         movement_subscribers = (
             session.query(Subscription)
-            .filter_by(
+            .filter(
                 Subscription.movement_id == movement_id,
                 Subscription.time_removed.is_(None)
             )
@@ -220,7 +227,7 @@ def get_subscriptions(user_id: int) -> list:
         user = load_user(user_id, session)
         user_subscriptions = (
             session.query(Subscription)
-            .filter_by(
+            .filter(
                 Subscription.user_id == user_id,
                 Subscription.time_removed.is_(None)
             )

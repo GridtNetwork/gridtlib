@@ -46,5 +46,5 @@ class Subscription(MovementUserRelation):
             "user": self.user.to_json(),
             "time_started": self.time_added,
             "time_ended": self.time_removed,
-            "subscribed": self.is_ended()
+            "subscribed": not self.is_ended()
         }
