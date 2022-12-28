@@ -8,3 +8,7 @@ class MovementNotFoundError(Exception):
 
 class SubscriptionNotFoundError(Exception):
     pass
+
+
+class UserIsNotCreator(Exception):
+    pass

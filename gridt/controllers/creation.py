@@ -1,12 +1,14 @@
 from gridt.models import Creation
-from sqlalchemy.orm.query import Query
 from gridt.db import Session
+import gridt.exc as E
 from .helpers import (
     session_scope,
     load_movement,
     load_user,
     extend_movement_json
 )
+
+from sqlalchemy.orm.query import Query
 
 def _get_creation(user_id: int, movement_id: int, session: Session) -> Query:
     """
@@ -20,15 +22,19 @@ def _get_creation(user_id: int, movement_id: int, session: Session) -> Query:
     Returns:
         Query: A creation relation query 
     """
-    return (
+    creations = (
         session.query(Creation)
-        .filter_by(
+        .filter(
             Creation.user_id == user_id,
             Creation.movement_id == movement_id,
             Creation.time_removed.is_(None)
         )
-        .one()
     )
+
+    if not creations.count():
+        raise E.UserIsNotCreator(f"User '{user_id}' has not created the Movement '{movement_id}'. Or one or both do not exist")
+    
+    return creations.one()
 
 
 def is_creator(user_id: int, movement_id: int) -> bool:
@@ -45,7 +51,7 @@ def is_creator(user_id: int, movement_id: int) -> bool:
     with session_scope() as session:
         try:
             _get_creation(user_id, movement_id, session)
-        except:
+        except E.UserIsNotCreator:
             return False
 
     return True
@@ -63,15 +69,15 @@ def new_creation(user_id: int, movement_id: int) -> dict:
         dict: json representation of the new subscription
     """
     with session_scope() as session:
-        user = load_user(user_id)
-        movement = load_movement(movement_id)
+        user = load_user(user_id, session)
+        movement = load_movement(movement_id, session)
         
         creation = Creation(user, movement)
         session.add(creation)
     
         #TODO: should have an emit listener here to actually create the movement
 
-    return creation.to_json()
+        return creation.to_json()
 
 
 def remove_creation(user_id: int, movement_id: int) -> dict:
@@ -91,4 +97,4 @@ def remove_creation(user_id: int, movement_id: int) -> dict:
 
         #TODO: should have an emit listener to actually remove the movement
 
-    return creation.to_json()
+        return creation.to_json()

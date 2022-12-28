@@ -2,11 +2,13 @@
 from .load_errors import (
     UserNotFoundError,
     MovementNotFoundError,
-    SubscriptionNotFoundError
+    SubscriptionNotFoundError,
+    UserIsNotCreator
 )
 
 __all__ = [
     'UserNotFoundError',
     'MovementNotFoundError',
-    'SubscriptionNotFoundError'
+    'SubscriptionNotFoundError',
+    'UserIsNotCreator',
     ]
