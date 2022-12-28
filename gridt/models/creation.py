@@ -27,3 +27,19 @@ class Creation(MovementUserRelation):
             str: string representation of the object
         """
         return f"<Creation relation: {self.user.username} has created {self.movement.name}>"
+
+
+    def to_json(self) -> dict:
+        """
+        This method computes the json representation of a creation relation
+
+        Returns:
+            dict: Json representation of the creation object
+        """
+        return {
+            "movement": self.movement.to_json(),
+            "user": self.user.to_json(),
+            "time_started": self.time_added,
+            "time_ended": self.time_removed,
+            "created": self.is_ended()
+        }
