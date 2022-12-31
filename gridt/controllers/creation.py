@@ -1,5 +1,4 @@
 from gridt.models import Creation
-from gridt.db import Session
 import gridt.exc as E
 from .helpers import (
     session_scope,
@@ -9,6 +8,9 @@ from .helpers import (
 )
 
 from sqlalchemy.orm.query import Query
+from sqlalchemy.orm.session import Session
+
+import types
 
 def _get_creation(user_id: int, movement_id: int, session: Session) -> Query:
     """
@@ -57,6 +59,33 @@ def is_creator(user_id: int, movement_id: int) -> bool:
     return True
 
 
+# set of events to listening to the creation of a movement
+_on_create_events = set()
+
+
+def on_creation(event_func: types.FunctionType) -> None:
+    """
+    This function adds an event listener to the function new_creation.
+
+    Args:
+        event_func (types.FunctionType): A function that should be called whenever a creation relation is made between users and movements.
+        The function should be in the type (user_id: int, movement_id: int) -> None.
+    """
+    _on_create_events.add(event_func)
+
+
+def _notify_creation_listeners(user_id: int, movement_id: int) -> None:
+    """
+    This helper function calls all event functions for each listener.
+
+    Args:
+        user_id (int): The id of the user who created a new movement.
+        movement_id (int): The id of the movement who was just created.
+    """
+    for event in _on_create_events:
+        event(user_id, movement_id)
+
+
 def new_creation(user_id: int, movement_id: int) -> dict:
     """
     Creates a new creation relation between a user and movement.
@@ -71,13 +100,42 @@ def new_creation(user_id: int, movement_id: int) -> dict:
     with session_scope() as session:
         user = load_user(user_id, session)
         movement = load_movement(movement_id, session)
-        
         creation = Creation(user, movement)
-        session.add(creation)
-    
-        #TODO: should have an emit listener here to actually create the movement
 
-        return creation.to_json()
+        session.add(creation)
+        creation_json = creation.to_json()
+    
+    # Emit message to all listeners
+    _notify_creation_listeners(user_id, movement_id)
+
+    return creation_json
+
+
+# set of events to listening to the removal of a movement
+_on_remove_creation_events = set()
+
+
+def on_remove_creation(event_func: types.FunctionType) -> None:
+    """
+    This function adds an event listener to the function remove_creation.
+
+    Args:
+        event_func (types.FunctionType): A function that should be called whenever a creation relation is removed.
+        The function should be in the type (user_id: int, movement_id: int) -> None
+    """
+    _on_remove_creation_events.add(event_func)
+
+
+def _notify_remove_creation_listeners(user_id: int, movement_id: int) -> None:
+    """
+    This helper function calls all notify functions for each listener.
+
+    Args:
+        user_id (int): The id of the user who relation to the movement was removed.
+        movement_id (int): The id of the movement who relation to the user was removed.
+    """
+    for event in _on_remove_creation_events:
+        event(user_id, movement_id)
 
 
 def remove_creation(user_id: int, movement_id: int) -> dict:
@@ -95,6 +153,10 @@ def remove_creation(user_id: int, movement_id: int) -> dict:
         creation = _get_creation(user_id, movement_id, session)
         creation.end()
 
-        #TODO: should have an emit listener to actually remove the movement
+        session.add(creation)
+        removed_json = creation.to_json()
 
-        return creation.to_json()
+    # Emit event to listeners
+    _notify_remove_creation_listeners(user_id, movement_id)
+
+    return removed_json

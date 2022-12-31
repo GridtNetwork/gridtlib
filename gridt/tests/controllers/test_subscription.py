@@ -1,5 +1,4 @@
 from ..basetest import BaseTest
-from unittest import skip
 
 from gridt.controllers.subscription import (
     _get_subscription,
@@ -7,7 +6,13 @@ from gridt.controllers.subscription import (
     get_subscribers,
     get_subscriptions,
     new_subscription,
-    remove_subscription
+    _on_subscription_events,
+    on_subscription,
+    _notify_subsciption_listeners,
+    remove_subscription,
+    _on_unsubscription_events,
+    on_unsubscription,
+    _notify_remove_subscription_listeners
 )
 import gridt.exc as E
 from gridt.models.subscription import Subscription
@@ -55,8 +60,35 @@ class SubscriptionControllerUnitTest(BaseTest):
 
         self.assertFalse(is_subscribed(user_id, movement_id))
 
+    def test_on_creation(self):
+        def dummy_func():
+            pass
+        on_subscription(dummy_func)
+        self.assertIn(dummy_func, _on_subscription_events)
+        _on_subscription_events.remove(dummy_func)
+
+    def test_notify_creation_listeners(self):
+        # Remove all the events in the event listener
+        temp = _on_subscription_events.copy()
+        for event in temp:
+            _on_subscription_events.remove(event)
+        
+        def dummy_func(x, y):
+            dummy_func.has_been_called = True
+            assert(x == 0)
+            assert(y == 2)
+
+        dummy_func.has_been_called = False
+        _on_subscription_events.add(dummy_func)
+        _notify_subsciption_listeners(0, 2)
+        self.assertTrue(dummy_func.has_been_called)
+        
+        # Restore event listener to want it was previously
+        for event in temp:
+            _on_subscription_events.add(event)
+        _on_subscription_events.remove(dummy_func)
+
     def test_new_subscription(self):
-        # I don't test other stuff because it will be moved
         user = self.create_user()
         movement = self.create_movement() 
 
@@ -72,10 +104,35 @@ class SubscriptionControllerUnitTest(BaseTest):
         self.assertDictEqual(assert_json_movement, json_subscription['movement'])
         self.assertTrue(json_subscription['subscribed'])
 
-        # TODO: Test that a message is emitted
+    def test_on_unsubscription(self):
+        def dummy_func():
+            pass
+        on_unsubscription(dummy_func)
+        self.assertIn(dummy_func, _on_unsubscription_events)
+        _on_unsubscription_events.remove(dummy_func)
+
+    def test_notify_remove_subscription_listeners(self):
+        # Remove all the events in the event listener
+        temp = _on_unsubscription_events.copy()
+        for event in temp:
+            _on_unsubscription_events.remove(event)
+        
+        def dummy_func(x, y):
+            dummy_func.has_been_called = True
+            assert(x == 11)
+            assert(y == 97)
+
+        dummy_func.has_been_called = False
+        _on_unsubscription_events.add(dummy_func)
+        _notify_remove_subscription_listeners(11, 97)
+        self.assertTrue(dummy_func.has_been_called)
+
+        # Restore event listener to want it was previously
+        for event in temp:
+            _on_unsubscription_events.add(event)
+        _on_unsubscription_events.remove(dummy_func)
 
     def test_remove_subscription(self):
-        # I don't test other stuff because it will moved
         movement = self.create_movement()
         u1 = self.create_user()
         u2 = self.create_user()
@@ -98,9 +155,7 @@ class SubscriptionControllerUnitTest(BaseTest):
 
         # Test trying to remove none existing subscription
         with self.assertRaises(E.SubscriptionNotFoundError):
-            _get_subscription(user_2_id, movement_id, self.session)
-
-        # TODO: Test that a message is emitted
+            remove_subscription(user_2_id, movement_id)
 
     def test_get_subscribers_empty(self):
         m1 = self.create_movement()

@@ -1,6 +1,5 @@
 from gridt.models import Subscription
 import gridt.exc as E 
-from gridt.db import Session
 from .helpers import (
     session_scope,
     load_movement,
@@ -9,7 +8,9 @@ from .helpers import (
 )
 
 from sqlalchemy.orm.query import Query
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm.session import Session
+
+import types
 
 def _get_subscription(user_id: int, movement_id: int, session: Session) -> Query:
     """
@@ -33,7 +34,7 @@ def _get_subscription(user_id: int, movement_id: int, session: Session) -> Query
     )
 
     if not subscriptions.count():
-        raise E.SubscriptionNotFoundError(f"User '{user_id}' is not subscribed to Movement '{movement_id}'.")
+        raise E.SubscriptionNotFoundError(f"User '{user_id}' is not subscribed to Movement '{movement_id}'. Or one or both do not exist")
     
     return subscriptions.one()
 
@@ -58,6 +59,33 @@ def is_subscribed(user_id: int, movement_id: int) -> bool:
     return True
 
 
+# set of events to listening to the subscription of a user to a movement
+_on_subscription_events = set()
+
+
+def on_subscription(event_func: types.FunctionType) -> None:
+    """
+    This function adds an eventlistener to the function new_subscription
+
+    Args:
+        event_func (types.FunctionType): A function that should be called whenever a new subscription is made.
+        The function should be in the type (user_id: int, movement_id: int) -> None.
+    """
+    _on_subscription_events.add(event_func)
+
+
+def _notify_subsciption_listeners(user_id: int, movement_id: int) -> None:
+    """
+    This helper function calls all event functions for each listener.
+
+    Args:
+        user_id (int): The id of the user who just subscribed.
+        movement_id (int): The id of the movement the user subscribed to.
+    """
+    for event in _on_subscription_events:
+        event(user_id, movement_id)
+
+
 def new_subscription(user_id: int, movement_id: int) -> dict:
     """
     Creates a new subscription between a user and a movement.
@@ -75,53 +103,39 @@ def new_subscription(user_id: int, movement_id: int) -> dict:
         
         subscription = Subscription(user, movement)
         session.add(subscription)
+        subscription_json = subscription.to_json()
+
+    # Emit message to all listeners
+    _notify_subsciption_listeners(user_id, movement_id)
+
+    return subscription_json
 
 
-        # TODO: This should be handeled by an event listener in the follower controller
-        # We emit an event here that the subscription added
-        # I add the imports here so I don't forget to remove them when I refactor this
-        import random
-        from gridt.models import MovementUserAssociation
-        from .helpers import (
-            leaders, 
-            possible_leaders,
-            possible_followers
-        )
-        
-        # Give that new subscriber other leaders to follow in the movement
-        while leaders(user, movement, session).count() < 4:
-            avaiable = possible_leaders(user, movement, session).all()
-            if avaiable:
-                mua = MovementUserAssociation(movement, user)
-                mua.leader = random.choice(avaiable)
-                session.add(mua)
-            else:
-                if leaders(user, movement, session).count() == 0:
-                    # Case no leaders have been added, add None
-                    mua = MovementUserAssociation(movement, user, None)
-                    session.add(mua)
-                break
+# set of events listening to the unsubscription of a user to a movement
+_on_unsubscription_events = set()
 
-        # Give that new subscriber other followers to follow in the movement
-        for new_follower in possible_followers(user, movement, session):
-            mua = MovementUserAssociation(movement, new_follower, leader=user)
-            session.add(mua)
 
-            # Remove any None associations the new follower may have had
-            assoc_none = (
-                session.query(MovementUserAssociation)
-                .filter(
-                    MovementUserAssociation.movement_id == movement.id,
-                    MovementUserAssociation.follower_id == new_follower.id,
-                    MovementUserAssociation.leader_id.is_(None),
-                )
-                .group_by(MovementUserAssociation.follower_id)
-                .all()
-            )
-            for a in assoc_none:
-                a.destroy()
+def on_unsubscription(event_func: types.FunctionType) -> None:
+    """
+    This function adds an event listener to the function remove subscription
 
-        return subscription.to_json()
+    Args:
+        event_func (types.FunctionType): A function that should be called whenever a subscriptions is ended.
+        The function should be in the type (user_id: int, movement_id: int) -> None
+    """
+    _on_unsubscription_events.add(event_func)
+
+
+def _notify_remove_subscription_listeners(user_id: int, movement_id: int):
+    """
+    This helper function calls all notify functions for each listener.
+
+    Args:
+        user_id (int): The id of the user who subscription to the movement was removed.
+        movement_id (int): The id of the movement who relation to the user was removed.
+    """
+    for event in _on_unsubscription_events:
+        event(user_id, movement_id)
 
 
 def remove_subscription(user_id: int, movement_id: int) -> dict:
@@ -138,58 +152,14 @@ def remove_subscription(user_id: int, movement_id: int) -> dict:
     with session_scope() as session:
         subscription = _get_subscription(user_id, movement_id, session)
         subscription.end()
+
         session.add(subscription)
+        removed_json = subscription.to_json()
 
+    # Emit event to listeners
+    _notify_remove_subscription_listeners(user_id, movement_id)
 
-        # TODO: Again, this should be handled by emitting an event
-        # I add the imports here so I don't forget to remove them when I refactor this
-        from gridt.models import MovementUserAssociation
-        from itertools import chain
-        import random
-        from .helpers import (
-            possible_leaders,
-            possible_followers
-        )
-
-        user, movement = subscription.user, subscription.movement
-
-        # Remove all links to the removed subscriber
-        leader_muas_to_destroy = session.query(MovementUserAssociation).filter(
-            MovementUserAssociation.movement_id == movement.id,
-            MovementUserAssociation.destroyed.is_(None),
-            MovementUserAssociation.leader_id == user.id,
-        )
-
-        follower_muas_to_destroy = session.query(
-            MovementUserAssociation
-        ).filter(
-            MovementUserAssociation.movement_id == movement.id,
-            MovementUserAssociation.destroyed.is_(None),
-            MovementUserAssociation.follower_id == user.id,
-        )
-
-        for mua in set(
-            chain(follower_muas_to_destroy, leader_muas_to_destroy)
-        ):
-            mua.destroy()
-
-        session.commit()
-
-        # Add new links to followers without links
-        for mua in leader_muas_to_destroy:
-            poss_leaders = possible_leaders(mua.follower)
-            # Add new MUAs for each former follower.
-            if possible_leaders:
-                new_leader = random.choice(poss_leaders)
-                new_mua = MovementUserAssociation(
-                    movement, mua.follower, new_leader
-                )
-                session.add(new_mua)
-            else:
-                new_mua = MovementUserAssociation(movement, mua.follower, None)
-                session.add(new_mua)
-
-        return subscription.to_json()
+    return removed_json
 
 
 def get_subscribers(movement_id: int) -> list:

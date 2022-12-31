@@ -3,14 +3,88 @@ from sqlalchemy import desc
 from .helpers import (
     session_scope,
     possible_leaders,
+    possible_followers,
     extend_movement_json,
     load_movement,
     load_user,
+    leaders, 
 )
+from gridt.controllers.subscription import on_subscription, on_unsubscription
 from gridt.models import User, MovementUserAssociation, Signal
 
 # Move variable to config
 MESSAGE_HISTORY_MAX_DEPTH = 3
+
+
+def _get_initial_leaders(follower_id: int, movement_id: int) -> None:
+    """
+    This function gets the initial leaders for a follower when the follower first joins the movement.
+
+    Args:
+        follower_id (int): The id of the follower in the movement
+        movement_id (int): The id of the movement to get leaders from.
+    """
+    with session_scope() as session:
+        user = load_user(follower_id, session)
+        movement = load_movement(movement_id, session)
+
+        while leaders(user, movement, session).count() < 4:
+            avaiable = possible_leaders(user, movement, session).all()
+            if avaiable:
+                mua = MovementUserAssociation(movement, user)
+                mua.leader = random.choice(avaiable)
+                session.add(mua)
+            else:
+                if leaders(user, movement, session).count() == 0:
+                    # Case no leaders have been added, add None
+                    mua = MovementUserAssociation(movement, user, None)
+                    session.add(mua)
+                break
+
+
+# Add a listener to new subscription event to get the initial leaders
+on_subscription(_get_initial_leaders)
+
+
+def _remove_all_leaders(follower_id: int, movement_id: int) -> None:
+    """
+    This function removes all leaders from a follower when the follower leaves a movement.
+    It then tries to find new followers for the leaders.
+
+    Args:
+        follower_id (int): The id of the follower in the movement.
+        movement_id (int): The id of the movement itself.
+    """
+    with session_scope() as session:
+        movement = load_movement(movement_id, session)
+
+        follower_muas_to_destroy = session.query(
+            MovementUserAssociation
+        ).filter(
+            MovementUserAssociation.movement_id == movement_id,
+            MovementUserAssociation.destroyed.is_(None),
+            MovementUserAssociation.follower_id == follower_id,
+        )
+
+        for mua in follower_muas_to_destroy:
+            mua.destroy()
+
+        session.commit()
+
+        # For each leader removed try to find a new follower
+        for mua in follower_muas_to_destroy:
+            poss_followers = possible_followers(mua.leader)
+            # Add new MUAs for each former follower.
+            if poss_followers:
+                new_follower = random.choice(poss_followers)
+                new_mua = MovementUserAssociation(
+                    movement, new_follower, mua.leader
+                )
+                session.add(new_mua)
+
+
+# Add a listener to remove subscription event to remove all the leaders of a follower.
+on_unsubscription(_remove_all_leaders)
 
 
 def get_leader(follower_id: int, movement_id: int, leader_id: int):
