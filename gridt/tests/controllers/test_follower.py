@@ -3,10 +3,235 @@ from unittest.mock import patch
 from gridt.tests.basetest import BaseTest
 from gridt.controllers.helpers import leaders
 from gridt.models import User, Movement, MovementUserAssociation as MUA
-from gridt.controllers.follower import swap_leader, get_leader
+from gridt.controllers.follower import swap_leader, get_leader, _add_initial_leaders, _remove_all_leaders
 from gridt.controllers.leader import send_signal
+from datetime import datetime
 
 
+class OnSubscriptionEventsFollowerTests(BaseTest):
+
+    def test_add_initial_leaders(self):
+        follower = self.create_user()
+        u1 = self.create_user()
+        u2 = self.create_user()
+        u3 = self.create_user()
+        u4 = self.create_user()
+        u5 = self.create_user()
+        mA = self.create_movement()
+        mB = self.create_movement()
+        mC = self.create_movement()
+        mD = self.create_movement()
+        mE = self.create_movement()
+        self.session.add_all(
+            [
+                # Movement B
+                MUA(mB, u1, None),
+
+                # Movement C
+                MUA(mC, u1, u2), MUA(mC, u2, u1),
+                
+                # Movement D
+                MUA(mD, u1, u2), MUA(mD, u1, u3),
+                MUA(mD, u2, u3), MUA(mD, u2, u4),
+                MUA(mD, u3, u4), MUA(mD, u3, u5),
+                MUA(mD, u4, u5), MUA(mD, u3, u1),
+                MUA(mD, u5, u1), MUA(mD, u5, u2),
+
+                # Movement E
+                MUA(mE, u1, u2), MUA(mE, u1, u3), MUA(mE, u1, u4), MUA(mE, u1, u5),
+                MUA(mE, u2, u3), MUA(mE, u2, u4), MUA(mE, u2, u5), MUA(mE, u2, u1),
+                MUA(mE, u3, u4), MUA(mE, u3, u5), MUA(mE, u3, u1), MUA(mE, u3, u2),
+                MUA(mE, u4, u5), MUA(mE, u4, u1), MUA(mE, u4, u2), MUA(mE, u4, u3),
+                MUA(mE, u5, u1), MUA(mE, u5, u2), MUA(mE, u5, u3), MUA(mE, u5, u4)
+            ]
+        )
+        self.session.commit()
+        follower_id = follower.id
+        u1_id = u1.id
+        u2_id = u2.id
+        u3_id = u3.id
+        u4_id = u4.id
+        u5_id = u5.id
+        mA_id = mA.id
+        mB_id = mB.id
+        mC_id = mC.id
+        mD_id = mD.id
+        mE_id = mE.id
+
+        # Test 0 users in movement A
+        _add_initial_leaders(follower_id, mA_id)
+        self.assertEqual(self.session.query(MUA).filter(MUA.movement_id == mA_id).count(), 1)
+        self.assertEqual(self.session.query(MUA).filter(
+            MUA.follower_id == follower_id,
+            MUA.movement_id == mA_id,
+            MUA.leader_id.is_(None),
+            MUA.destroyed.is_(None),
+        ).count(), 1)
+
+        # Test 1 user in movement B
+        _add_initial_leaders(follower_id, mB_id)
+        self.assertEqual(self.session.query(MUA).filter(
+            MUA.movement_id == mB_id,
+            MUA.follower_id == follower_id
+        ).count(), 1)
+        self.assertEqual(self.session.query(MUA).filter(
+            MUA.follower_id == follower_id,
+            MUA.movement_id == mB_id,
+            MUA.leader_id == u1_id,
+            MUA.destroyed.is_(None),
+        ).count(), 1)
+
+        # Test 2 users in movement C
+        _add_initial_leaders(follower_id, mC_id)
+        self.assertEqual(self.session.query(MUA).filter(
+            MUA.follower_id == follower_id,
+            MUA.movement_id == mC_id,
+            MUA.destroyed.is_(None),
+        ).count(), 2)
+        self.assertEqual(self.session.query(MUA).filter(
+            MUA.follower_id == follower_id,
+            MUA.leader_id == u1_id,
+            MUA.movement_id == mC_id,
+            MUA.destroyed.is_(None),
+        ).count(), 1)
+        self.assertEqual(self.session.query(MUA).filter(
+            MUA.follower_id == follower_id,
+            MUA.leader_id == u2_id,
+            MUA.movement_id == mC_id,
+            MUA.destroyed.is_(None),
+        ).count(), 1)
+
+        # Test 5 users in movement D
+        _add_initial_leaders(follower_id, mD_id)
+        self.assertEqual(self.session.query(MUA).filter(
+            MUA.follower_id == follower_id,
+            MUA.leader_id.in_([u1_id, u2_id, u3_id, u4_id, u5_id]),
+            MUA.movement_id == mD_id,
+            MUA.destroyed.is_(None),
+        ).count(), 4)
+
+        # Test 5 users in movement E but all leaders have 4 followers
+        _add_initial_leaders(follower_id, mE_id)
+        self.assertEqual(self.session.query(MUA).filter(
+            MUA.follower_id == follower_id,
+            MUA.leader_id.in_([u1_id, u2_id, u3_id, u4_id, u5_id]),
+            MUA.movement_id == mE_id,
+            MUA.destroyed.is_(None),
+        ).count(), 4)
+        
+    def test_remove_all_leaders(self):
+        follower = self.create_user()
+        u1 = self.create_user()
+        u2 = self.create_user()
+        u3 = self.create_user()
+        mA = self.create_movement()
+        mB = self.create_movement()
+        mC = self.create_movement()
+        mD = self.create_movement()
+        mE = self.create_movement()
+        self.session.add_all(
+            [
+                # Movement A
+                MUA(mA, follower, None),
+
+                # Movement B
+                MUA(mB, follower, u1),
+
+                # Movement C
+                MUA(mC, follower, u1), MUA(mC, follower, u2),
+                MUA(mC, u1, None), MUA(mC, u2, None),
+                
+                # Movement D
+                MUA(mD, follower, u1), MUA(mD, follower, u2), MUA(mD, follower, u3),
+                MUA(mD, u1, u2), MUA(mD, u2, u3), MUA(mD, u3, u1),
+
+                # Movement E
+                MUA(mE, u1, u2), MUA(mE, u2, u3), MUA(mE, u3, u1),
+                MUA(mE, u2, u1), MUA(mE, u3, u2), MUA(mE, u1, u3)
+            ]
+        )
+        self.session.commit()
+        follower_id = follower.id
+        u1_id = u1.id
+        u2_id = u2.id
+        u3_id = u3.id
+        mA_id = mA.id
+        mB_id = mB.id
+        mC_id = mC.id
+        mD_id = mD.id
+        mE_id = mE.id
+
+        # Test 0 users in movement A
+        with freeze_time("2023-01-03 00:00:00+01:00"):
+            _remove_all_leaders(follower_id, mA_id)
+        self.assertEqual(self.session.query(MUA).filter(
+            MUA.follower_id == follower_id,
+            MUA.leader_id == None,
+            MUA.movement_id == mA_id,
+            MUA.destroyed == datetime(2023, 1, 2, 23, 0),
+        ).count(), 1)
+
+        # Test 1 user in movement B
+        with freeze_time("2023-01-03 00:00:00+01:00"):
+            _remove_all_leaders(follower_id, mB_id)
+        self.assertEqual(self.session.query(MUA).filter(
+            MUA.follower_id == follower_id,
+            MUA.leader_id == u1_id,
+            MUA.movement_id == mB_id,
+            MUA.destroyed == datetime(2023, 1, 2, 23, 0),
+        ).count(), 1)
+        self.assertEqual(self.session.query(MUA).filter(
+            MUA.movement_id == mB_id,
+            MUA.destroyed.is_(None)
+        ).count(), 0)
+
+        # Test 2 users in movement C
+        with freeze_time("2023-01-03 00:00:00+01:00"):
+            _remove_all_leaders(follower_id, mC_id)
+        self.assertEqual(self.session.query(MUA).filter(
+            MUA.follower_id == follower_id,
+            MUA.movement_id == mC_id,
+            MUA.destroyed == datetime(2023, 1, 2, 23, 0)
+        ).count(), 2)
+        self.assertEqual(self.session.query(MUA).filter(
+            MUA.movement_id == mC_id,
+            MUA.leader_id.isnot(None),
+            MUA.destroyed.is_(None)
+        ).count(), 2)
+
+        # Test 3 users in movement D
+        with freeze_time("2023-01-03 00:00:00+01:00"):
+            _remove_all_leaders(follower_id, mD_id)
+        self.assertEqual(self.session.query(MUA).filter(
+            MUA.follower_id == follower_id,
+            MUA.movement_id == mD_id,
+            MUA.destroyed == datetime(2023, 1, 2, 23, 0)
+        ).count(), 3)
+        self.assertEqual(self.session.query(MUA).filter(
+            MUA.follower_id == u1_id,
+            MUA.movement_id == mD_id,
+            MUA.destroyed.is_(None)
+        ).count(), 2)
+        self.assertEqual(self.session.query(MUA).filter(
+            MUA.follower_id == u2_id,
+            MUA.movement_id == mD_id,
+            MUA.destroyed.is_(None)
+        ).count(), 2)
+        self.assertEqual(self.session.query(MUA).filter(
+            MUA.follower_id == u3_id,
+            MUA.movement_id == mD_id,
+            MUA.destroyed.is_(None)
+        ).count(), 2)
+
+        # Test 3 users in movement E (follower not in movement)
+        with freeze_time("2023-01-03 00:00:00+01:00"):
+            _remove_all_leaders(follower_id, mE_id)
+        self.assertEqual(self.session.query(MUA).filter(
+            MUA.movement_id == mE_id,
+            MUA.destroyed.is_(None)
+        ).count(), 6)
+  
+        
 class GetLeaderTest(BaseTest):
     @patch(
         "gridt.controllers.follower.User.get_email_hash",

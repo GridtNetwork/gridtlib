@@ -7,9 +7,9 @@ from gridt.controllers.subscription import on_subscription, on_unsubscription
 import random
 
 
-def _get_initial_followers(leader_id: int, movement_id: int) -> None:
+def _add_initial_followers(leader_id: int, movement_id: int) -> None:
     """
-    This funciton gets the initial followers of a leader joining a movement
+    This funciton adds the initial followers of a leader joining a movement
 
     Args:
         leader_id (int): The id of the leader who just joined the movement
@@ -41,7 +41,7 @@ def _get_initial_followers(leader_id: int, movement_id: int) -> None:
 
 
 # Add a listener to new subscription event to get the initial followers
-on_subscription(_get_initial_followers)
+on_subscription(_add_initial_followers)
 
 
 def _remove_all_followers(leader_id: int, movement_id: int) -> None:
@@ -61,7 +61,7 @@ def _remove_all_followers(leader_id: int, movement_id: int) -> None:
             MovementUserAssociation.movement_id == movement_id,
             MovementUserAssociation.destroyed.is_(None),
             MovementUserAssociation.leader_id == leader_id,
-        )
+        ).all()
 
         for mua in leader_muas_to_destroy:
             mua.destroy()
@@ -70,10 +70,11 @@ def _remove_all_followers(leader_id: int, movement_id: int) -> None:
 
         # For each follower removed try to find a new leader
         for mua in leader_muas_to_destroy:
-            poss_leaders = possible_leaders(mua.follower)
+            poss_new_leaders = possible_leaders(mua.follower, mua.movement, session).all()
+            poss_new_leaders = [l for l in poss_new_leaders if l.id != leader_id]
             # Add new MUAs for each former follower.
-            if poss_leaders:
-                new_leader = random.choice(poss_leaders)
+            if poss_new_leaders:
+                new_leader = random.choice(poss_new_leaders)
                 new_mua = MovementUserAssociation(
                     movement, mua.follower, new_leader
                 )

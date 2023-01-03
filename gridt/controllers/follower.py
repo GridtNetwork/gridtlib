@@ -16,9 +16,9 @@ from gridt.models import User, MovementUserAssociation, Signal
 MESSAGE_HISTORY_MAX_DEPTH = 3
 
 
-def _get_initial_leaders(follower_id: int, movement_id: int) -> None:
+def _add_initial_leaders(follower_id: int, movement_id: int) -> None:
     """
-    This function gets the initial leaders for a follower when the follower first joins the movement.
+    This function adds the initial leaders for a follower when the follower first joins the movement.
 
     Args:
         follower_id (int): The id of the follower in the movement
@@ -43,7 +43,7 @@ def _get_initial_leaders(follower_id: int, movement_id: int) -> None:
 
 
 # Add a listener to new subscription event to get the initial leaders
-on_subscription(_get_initial_leaders)
+on_subscription(_add_initial_leaders)
 
 
 def _remove_all_leaders(follower_id: int, movement_id: int) -> None:
@@ -64,7 +64,7 @@ def _remove_all_leaders(follower_id: int, movement_id: int) -> None:
             MovementUserAssociation.movement_id == movement_id,
             MovementUserAssociation.destroyed.is_(None),
             MovementUserAssociation.follower_id == follower_id,
-        )
+        ).all()
 
         for mua in follower_muas_to_destroy:
             mua.destroy()
@@ -73,8 +73,11 @@ def _remove_all_leaders(follower_id: int, movement_id: int) -> None:
 
         # For each leader removed try to find a new follower
         for mua in follower_muas_to_destroy:
-            poss_followers = possible_followers(mua.leader)
-            # Add new MUAs for each former follower.
+            if not mua.leader:
+                continue
+
+            poss_followers = possible_followers(mua.leader, mua.movement, session).all()
+            # Add new MUAs for each former leader.
             if poss_followers:
                 new_follower = random.choice(poss_followers)
                 new_mua = MovementUserAssociation(

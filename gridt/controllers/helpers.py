@@ -61,6 +61,7 @@ def possible_leaders(
                 )
             ),
             MovementUserAssociation.movement_id == movement.id,
+            MovementUserAssociation.destroyed.is_(None)
         )
         .group_by(User.id)
     )
@@ -81,7 +82,7 @@ def possible_followers(
     MUA = MovementUserAssociation
 
     leader_associations = session.query(MUA.follower_id).filter(
-        MUA.movement_id == movement.id, MUA.leader_id == user.id
+        MUA.movement_id == movement.id, MUA.leader_id == user.id, MUA.destroyed.is_(None)
     )
 
     available_leaderless = movement.leaderless.filter(
