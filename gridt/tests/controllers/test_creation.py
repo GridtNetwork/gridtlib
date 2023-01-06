@@ -3,7 +3,8 @@ from ..basetest import BaseTest
 from gridt.controllers.creation import (
     _get_creation,
     is_creator,
-    new_creation,
+    new_movement_by_user,
+    _new_creation,
     on_creation,
     _notify_creation_listeners,
     _on_create_events,
@@ -91,6 +92,30 @@ class CreationControllerTest(BaseTest):
             _on_create_events.add(event)
         _on_create_events.remove(dummy_func)
 
+    def test_new_movement_by_user(self):
+        user = self.create_user()
+        m_name = "Test Movement"
+        m_interval = "daily"
+        m_short = "This is a movement for testing purposes"
+        m_description = (
+        "Unit tests are important for a movement creation because they allow you "
+        "to verify that the individual units of code that make up the movement "
+        "are working correctly. This is important because it helps to ensure the "
+        "overall integrity and reliability of the movement, as well as making it "
+        "easier to identify and fix any issues that may arise. Additionally, "
+        "having a comprehensive set of unit tests can also make it easier to "
+        "make changes to the movement, as you can use the tests to verify that "
+        "the changes you have made have not introduced any new problems."
+        )
+        self.session.commit()
+        user_id = user.id
+
+        json = new_movement_by_user(user_id, m_name, m_interval, m_short, m_description)
+        self.assertEqual(json['movement']['name'], m_name)
+        self.assertEqual(json['movement']['interval'], m_interval)
+        self.assertEqual(json['movement']['short_description'], m_short)
+        self.assertEqual(json['movement']['description'], m_description)
+
     def test_new_creation(self):
         user = self.create_user()
         movement = self.create_movement()
@@ -102,7 +127,7 @@ class CreationControllerTest(BaseTest):
         assert_json_user = user.to_json()
         assert_json_movement = movement.to_json()
 
-        json_creation = new_creation(user_id, movement_id)
+        json_creation = _new_creation(user_id, movement_id)
         self.assertDictEqual(assert_json_user, json_creation['user'])
         self.assertDictEqual(assert_json_movement, json_creation['movement'])
         self.assertTrue(json_creation['created'])

@@ -1,4 +1,4 @@
-from gridt.models import Creation
+from gridt.models import Creation, Movement
 import gridt.exc as E
 from .helpers import (
     session_scope,
@@ -86,7 +86,38 @@ def _notify_creation_listeners(user_id: int, movement_id: int) -> None:
         event(user_id, movement_id)
 
 
-def new_creation(user_id: int, movement_id: int) -> dict:
+def new_movement_by_user(
+    user_id: int,
+    name: str,
+    interval: str,
+    short_description: str = None,
+    description: str = None,
+) -> dict:
+    """Creates a new movement by a user. With the given user as the creator.
+
+    Args:
+        user_id (int): The id of the user creating the movement
+        name (str): The name of the movement
+        interval (str): The signal interval the new movement should have.
+        short_description (str, optional): Short summary of the new movement. Defaults to None.
+        description (str, optional): Opitonal more in depth description of the new movment. Defaults to None.
+
+    Returns:
+        dict: json representation of the new creation
+
+    TODO:
+        Maybe move this function to movement controller idk
+    """
+    with session_scope() as session:
+        movement = Movement(name, interval, short_description, description)
+        session.add(movement)
+        session.commit()
+        movement_id = movement.id
+    
+    return _new_creation(user_id, movement_id)
+
+
+def _new_creation(user_id: int, movement_id: int) -> dict:
     """
     Creates a new creation relation between a user and movement.
 
@@ -95,7 +126,7 @@ def new_creation(user_id: int, movement_id: int) -> dict:
         movement_id (int): The id of the movement
 
     Returns:
-        dict: json representation of the new subscription
+        dict: json representation of the new creation
     """
     with session_scope() as session:
         user = load_user(user_id, session)
