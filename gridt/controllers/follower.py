@@ -1,16 +1,18 @@
 import random
 from sqlalchemy import desc
+from sqlalchemy.orm.query import Query
+from sqlalchemy import not_, func
+from sqlalchemy.orm.session import Session
+
 from .helpers import (
     session_scope,
-    possible_leaders,
-    possible_followers,
-    extend_movement_json,
     load_movement,
     load_user,
     leaders, 
 )
-from gridt.controllers.subscription import on_subscription, on_unsubscription
-from gridt.models import User, MovementUserAssociation, Signal
+from gridt.controllers.subscription import on_subscription, on_unsubscription, get_subscribers
+from gridt.controllers import leader as Leader
+from gridt.models import User, MovementUserAssociation, Signal, Movement
 
 # Move variable to config
 MESSAGE_HISTORY_MAX_DEPTH = 3
@@ -29,7 +31,7 @@ def _add_initial_leaders(follower_id: int, movement_id: int) -> None:
         movement = load_movement(movement_id, session)
 
         while leaders(user, movement, session).count() < 4:
-            avaiable = possible_leaders(user, movement, session).all()
+            avaiable = Leader.possible_leaders(user, movement, session).all()
             if avaiable:
                 mua = MovementUserAssociation(movement, user)
                 mua.leader = random.choice(avaiable)
@@ -137,16 +139,6 @@ def follows_leader(follower_id: int, movement_id: int, leader_id: int):
         return False
 
 
-def get_subscriptions(user_id: int) -> list:
-    """Get list of movements that the user is subscribed to."""
-    with session_scope() as session:
-        user = load_user(user_id, session)
-        return [
-            extend_movement_json(movement, user, session)
-            for movement in user.current_movements
-        ]
-
-
 def swap_leader(follower_id: int, movement_id: int, leader_id: int) -> dict:
     """
     Swap out the presented leader in the users leaders.
@@ -163,7 +155,7 @@ def swap_leader(follower_id: int, movement_id: int, leader_id: int) -> dict:
 
         # If there are no other possible leaders than we can't perform the
         # swap.
-        poss_leaders = possible_leaders(follower, movement, session).all()
+        poss_leaders = Leader.possible_leaders(follower, movement, session).all()
         if not poss_leaders:
             return None
 
@@ -198,3 +190,53 @@ def swap_leader(follower_id: int, movement_id: int, leader_id: int) -> dict:
             leader_dict["last_signal"] = time_stamp
 
         return leader_dict
+
+
+def possible_followers(
+    user: User, movement: Movement, session: Session
+) -> Query:
+    """
+    Find the active users in this movement
+    (movement.current_users) that have fewer than four leaders,
+    excluding the current user or any of his followers.
+
+    :param user User that would be the possible leader
+    :param movement Movement where the leaderless are queried
+    :param session Session in which the query is performed
+
+    :todo we should probably be using subscriptions here this is all very hacky
+    """    
+    MUA = MovementUserAssociation
+
+    follower_ids = session.query(MUA.follower_id).filter(
+        MUA.movement_id == movement.id, MUA.leader_id == user.id, MUA.destroyed.is_(None)
+    )
+
+    valid_muas = (
+            session.query(
+                MUA,
+                func.count().label("mua_count"),
+            )
+            .filter(
+                MUA.movement_id == movement.id,
+                MUA.destroyed.is_(None),
+            )
+            .group_by(MUA.follower_id)
+            .subquery()
+        )
+
+
+    available_leaderless = (
+        session
+        .query(User)
+        .join(User.follower_associations)
+        .filter(
+            valid_muas.c.follower_id == User.id,
+            valid_muas.c.mua_count < 4,
+        )
+        .group_by(MUA.follower_id).filter(
+            not_(User.id == user.id), not_(User.id.in_(follower_ids))
+        )
+    )
+
+    return available_leaderless

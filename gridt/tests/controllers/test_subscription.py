@@ -14,8 +14,16 @@ from gridt.controllers.subscription import (
     on_unsubscription,
     _notify_remove_subscription_listeners
 )
+from gridt.controllers.user import (
+    register,
+    verify_password_for_email,
+    get_identity
+)
 import gridt.exc as E
-from gridt.models.subscription import Subscription
+from gridt.models import Subscription, MovementUserAssociation as MUA
+
+from freezegun import freeze_time
+from datetime import datetime
 
 
 class SubscriptionControllerUnitTest(BaseTest):
@@ -209,3 +217,99 @@ class SubscriptionControllerUnitTest(BaseTest):
 
         self.assertListEqual([], get_subscriptions(user_id_1))
         self.assertEqual(2, len(get_subscriptions(user_id_2)))
+
+
+class SubscriptionControllerIntergrationTests(BaseTest):
+
+    def test_subscriptions(self):
+        movement_1 = self.create_movement()
+        movement_2 = self.create_movement()
+
+        self.session.commit()
+        movement_1_id = movement_1.id
+        movement_2_id = movement_2.id
+
+        register('Antonin', 'antonin.thioux@gmail.com', 'password123')
+        antonin_id = verify_password_for_email('antonin.thioux@gmail.com', 'password123')
+        antonin_json = get_identity(antonin_id)
+        del antonin_json['email']  # Email should be private
+        register('Andrei', 'andrei.dumi20@gmail.com', 'password123')
+        andrei_id = verify_password_for_email('andrei.dumi20@gmail.com', 'password123')
+        andrei_json = get_identity(andrei_id)
+        del andrei_json['email']
+
+        with freeze_time("2023-01-06 09:00:00"):
+            json_1 = new_subscription(antonin_id, movement_1_id)
+        with freeze_time("2023-01-06 09:30:00"):
+            json_2 = new_subscription(andrei_id, movement_1_id)
+
+        self.assertDictEqual(json_1['user'], antonin_json, 'Note that the email should be private')
+        self.assertEqual(json_1['time_started'], datetime(2023, 1, 6, 9, 0))
+        self.assertIsNone(json_1['time_ended'])
+        self.assertTrue(json_1['subscribed'])
+        self.assertDictEqual(json_2['user'], andrei_json)
+        self.assertEqual(json_2['time_started'], datetime(2023, 1, 6, 9, 30))
+
+        self.assertTrue(is_subscribed(antonin_id, movement_1_id))
+        self.assertTrue(is_subscribed(andrei_id, movement_1_id))
+        self.assertIn(antonin_json, get_subscribers(movement_1_id))
+        self.assertIn(andrei_json, get_subscribers(movement_1_id))
+        self.assertEqual(get_subscriptions(antonin_id)[0]['id'], movement_1_id)
+        self.assertEqual(get_subscriptions(andrei_id)[0]['id'], movement_1_id)
+        self.assertFalse(is_subscribed(antonin_id, movement_2_id))
+        self.assertNotIn(antonin_json, get_subscribers(movement_2_id))
+        self.assertNotIn(andrei_json, get_subscribers(movement_2_id))
+
+        self.assertEqual(self.session.query(MUA).filter(
+            MUA.follower_id == antonin_id,
+            MUA.movement_id == movement_1_id,
+            MUA.leader_id == andrei_id,
+            MUA.destroyed.is_(None),
+        ).count(), 1, "When a user joins a movement followers without leaders should follow them")
+
+        self.assertEqual(self.session.query(MUA).filter(
+            MUA.follower_id == andrei_id,
+            MUA.movement_id == movement_1_id,
+            MUA.leader_id == antonin_id,
+            MUA.destroyed.is_(None),
+        ).count(), 1, "When a user joins a movement they should be given leaders")
+    
+    def test_unsubscribed(self):
+        movement = self.create_movement()
+        self.session.commit()
+        movement_id = movement.id
+
+        register('Antonin', 'antonin.thioux@gmail.com', 'password123')
+        antonin_id = verify_password_for_email('antonin.thioux@gmail.com', 'password123')
+        antonin_json = get_identity(antonin_id)
+        del antonin_json['email']  # Email should be private
+
+        with freeze_time("2023-01-06 09:00:00"):
+            json1 = new_subscription(antonin_id, movement_id)
+
+        self.assertDictEqual(json1['user'], antonin_json)
+        self.assertEqual(json1['time_started'], datetime(2023, 1, 6, 9, 0))
+        self.assertIsNone(json1['time_ended'])
+        self.assertTrue(json1['subscribed'])
+
+        self.assertTrue(is_subscribed(antonin_id, movement_id))
+
+        with freeze_time("2023-01-06 10:00:00"):
+            json2 = remove_subscription(antonin_id, movement_id)
+        
+        self.assertDictEqual(json2['user'], antonin_json)
+        self.assertEqual(json2['time_started'], datetime(2023, 1, 6, 9, 0))
+        self.assertEqual(json2['time_ended'], datetime(2023, 1, 6, 10, 0))
+        self.assertFalse(json2['subscribed'])
+
+        self.assertFalse(is_subscribed(antonin_id, movement_id))
+        self.assertNotIn(antonin_json, get_subscribers(movement_id))
+        self.assertListEqual([], get_subscriptions(antonin_id))
+
+        self.assertEqual(self.session.query(MUA).filter(
+            MUA.follower_id == antonin_id,
+            MUA.movement_id == movement_id,
+            MUA.leader_id.is_(None),
+            MUA.destroyed == datetime(2023, 1, 6, 10, 0),
+        ).count(), 1, "Mua must be destroyed when user is removed from movement.")
+

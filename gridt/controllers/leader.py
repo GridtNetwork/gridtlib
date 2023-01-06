@@ -1,10 +1,15 @@
-from .helpers import session_scope, load_movement, load_user, possible_followers, possible_leaders
-from gridt.models import Signal
+from .helpers import session_scope, load_movement, load_user, leaders
+from gridt.models import Signal, User, Movement
 from gridt.models import MovementUserAssociation
 
-from gridt.controllers.subscription import on_subscription, on_unsubscription
+from gridt.controllers.subscription import on_subscription, on_unsubscription, is_subscribed
+from gridt.controllers import follower as Follower
 
 import random
+
+from sqlalchemy.orm.query import Query
+from sqlalchemy import not_
+from sqlalchemy.orm.session import Session
 
 
 def _add_initial_followers(leader_id: int, movement_id: int) -> None:
@@ -20,7 +25,7 @@ def _add_initial_followers(leader_id: int, movement_id: int) -> None:
         movement = load_movement(movement_id, session)
 
         # Give that new subscriber other followers to follow in the movement
-        for new_follower in possible_followers(user, movement, session):
+        for new_follower in Follower.possible_followers(user, movement, session):
             mua = MovementUserAssociation(movement, new_follower, leader=user)
             session.add(mua)
 
@@ -94,8 +99,29 @@ def send_signal(leader_id: int, movement_id: int, message: str = None):
         leader = load_user(leader_id, session)
         movement = load_movement(movement_id, session)
 
-        assert leader in movement.active_users
+        assert is_subscribed(leader_id, movement_id)
 
         signal = Signal(leader, movement, message)
         session.add(signal)
         session.commit()
+
+
+def possible_leaders(
+    user: User, movement: Movement, session: Session
+) -> Query:
+    """Find possible leaders for a user in a movement."""
+    return (
+        session.query(User)
+        .join(User.follower_associations)
+        .filter(
+            not_(User.id == user.id),
+            not_(
+                User.id.in_(
+                    leaders(user, movement, session).with_entities(User.id)
+                )
+            ),
+            MovementUserAssociation.movement_id == movement.id,
+            MovementUserAssociation.destroyed.is_(None)
+        )
+        .group_by(User.id)
+    )

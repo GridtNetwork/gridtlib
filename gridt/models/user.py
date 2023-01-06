@@ -50,24 +50,6 @@ class User(Base):
         creator=lambda movement: MovementUserAssociation(movement=movement),
     )
 
-    @property
-    def current_movements(self):
-        # To prevent circular imports this is done here
-        from .movement import Movement
-
-        return (
-            object_session(self)
-            .query(Movement)
-            .join(MovementUserAssociation)
-            .filter(
-                MovementUserAssociation.movement_id == Movement.id,
-                MovementUserAssociation.follower_id == self.id,
-                MovementUserAssociation.destroyed.is_(None),
-            )
-            .group_by(Movement.id)
-            .all()
-        )
-
     def __init__(self, username, email, password, role="user", bio=""):
         self.username = username
         self.email = email

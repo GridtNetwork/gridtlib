@@ -3,8 +3,7 @@ import gridt.exc as E
 from .helpers import (
     session_scope,
     load_movement,
-    load_user,
-    extend_movement_json
+    load_user
 )
 
 from sqlalchemy.orm.query import Query

@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from sqlalchemy import not_, desc
 from sqlalchemy.orm.query import Query
 from gridt.db import Session
-from gridt.models import User, MovementUserAssociation, Movement, Signal
+from gridt.models import User, MovementUserAssociation, Movement, Signal, Subscription
 from gridt.exc import UserNotFoundError, MovementNotFoundError
 
 
@@ -46,53 +46,7 @@ def leaders(user: User, movement: Movement, session: Session) -> Query:
     )
 
 
-def possible_leaders(
-    user: User, movement: Movement, session: Session
-) -> Query:
-    """Find possible leaders for a user in a movement."""
-    return (
-        session.query(User)
-        .join(User.follower_associations)
-        .filter(
-            not_(User.id == user.id),
-            not_(
-                User.id.in_(
-                    leaders(user, movement, session).with_entities(User.id)
-                )
-            ),
-            MovementUserAssociation.movement_id == movement.id,
-            MovementUserAssociation.destroyed.is_(None)
-        )
-        .group_by(User.id)
-    )
-
-
-def possible_followers(
-    user: User, movement: Movement, session: Session
-) -> Query:
-    """
-    Find the active users in this movement
-    (movement.current_users) that have fewer than four leaders,
-    excluding the current user or any of his followers.
-
-    :param user User that would be the possible leader
-    :param movement Movement where the leaderless are queried
-    :param session Session in which the query is performed
-    """
-    MUA = MovementUserAssociation
-
-    leader_associations = session.query(MUA.follower_id).filter(
-        MUA.movement_id == movement.id, MUA.leader_id == user.id, MUA.destroyed.is_(None)
-    )
-
-    available_leaderless = movement.leaderless.filter(
-        not_(User.id == user.id), not_(User.id.in_(leader_associations))
-    )
-
-    return available_leaderless
-
-
-def find_last_signal(
+def _find_last_signal(
     leader: User, movement: Movement, session: Session
 ) -> Signal:
     """Find the last signal the leader has sent to the movement."""
@@ -107,10 +61,20 @@ def find_last_signal(
 def extend_movement_json(movement, user, session):
     movement_json = movement.to_json()
     movement_json["subscribed"] = False
-    if user in movement.active_users:
+
+    is_subscribed = (
+        session.query(Subscription)
+        .filter(
+            Subscription.user_id == user.id,
+            Subscription.movement_id == movement.id,
+            Subscription.time_removed.is_(None)
+        ).count()
+    )
+    
+    if is_subscribed:
         movement_json["subscribed"] = True
 
-        last_signal = find_last_signal(user, movement, session)
+        last_signal = _find_last_signal(user, movement, session)
         movement_json["last_signal_sent"] = (
             last_signal.to_json() if last_signal else None
         )
@@ -119,7 +83,7 @@ def extend_movement_json(movement, user, session):
         for leader in leaders(user, movement, session):
             leader_json = leader.to_json()
 
-            last_leader_signal = find_last_signal(leader, movement, session)
+            last_leader_signal = _find_last_signal(leader, movement, session)
             if last_leader_signal:
                 leader_json.update(last_signal=last_leader_signal.to_json())
 

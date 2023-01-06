@@ -3,10 +3,85 @@ from unittest.mock import patch
 from gridt.tests.basetest import BaseTest
 from gridt.controllers.helpers import leaders
 from gridt.models import User, Movement, MovementUserAssociation as MUA
-from gridt.controllers.follower import swap_leader, get_leader, _add_initial_leaders, _remove_all_leaders
+from gridt.controllers.follower import swap_leader, get_leader, _add_initial_leaders, _remove_all_leaders, possible_followers
 from gridt.controllers.leader import send_signal
 from datetime import datetime
 
+
+class TestLeaderlessFollowers(BaseTest):
+    def test_possible_followers(self):
+        movement1 = Movement("test1", "daily")
+        movement2 = Movement("test2", "daily")
+
+        for i in range(6):
+            user = User(f"user{i}", f"user{i}@email.com", "pass")
+            self.session.add(user)
+        users = self.session.query(User).all()
+
+        muas = [
+            MUA(movement1, users[0], users[1]),
+            MUA(movement1, users[0], users[2]),
+            MUA(movement1, users[0], users[3]),
+            MUA(movement1, users[1], users[0]),
+            MUA(movement1, users[1], users[2]),
+            MUA(movement1, users[1], users[3]),
+            MUA(movement1, users[2], users[1]),
+            MUA(movement1, users[2], users[5]),
+            MUA(movement1, users[2], users[3]),
+            MUA(movement1, users[2], users[4]),
+            MUA(movement1, users[3], None),
+            MUA(movement1, users[4], None),
+            MUA(movement1, users[5], None),
+            MUA(movement2, users[0], users[1]),
+            MUA(movement2, users[0], users[2]),
+            MUA(movement2, users[0], users[3]),
+            MUA(movement2, users[1], None),
+            MUA(movement2, users[2], None),
+            MUA(movement2, users[3], None),
+        ]
+        self.session.add_all(muas)
+        self.session.commit()
+
+        self.assertEqual(
+            set(possible_followers(users[0], movement1, self.session)),
+            set(users[3:]),
+        )
+        self.assertEqual(
+            set(possible_followers(users[0], movement2, self.session)),
+            set(users[1:4]),
+        )
+
+        mua1 = self.session.query(MUA).filter(MUA.id == 1).one()
+        mua1.destroy()
+
+        self.assertEqual(
+            set(possible_followers(users[0], movement1, self.session)),
+            set(users[3:]),
+        )
+        self.assertEqual(
+            set(possible_followers(users[0], movement2, self.session)),
+            set(users[1:4]),
+        )
+
+        mua2 = (
+            self.session.query(MUA)
+            .filter(
+                MUA.follower_id == users[1].id,
+                MUA.leader_id == users[2].id,
+                MUA.movement_id == movement1.id,
+            )
+            .one()
+        )
+        mua2.destroy()
+
+        self.assertEqual(
+            set(possible_followers(users[0], movement1, self.session)),
+            set([users[3], users[4], users[5]]),
+        )
+        self.assertEqual(
+            set(possible_followers(users[0], movement2, self.session)),
+            set(users[1:4]),
+        )
 
 class OnSubscriptionEventsFollowerTests(BaseTest):
 
@@ -249,6 +324,12 @@ class GetLeaderTest(BaseTest):
         leader2 = self.create_user()
         movement1 = self.create_movement()
         movement2 = self.create_movement()
+        self.create_subscription(movement=movement1, user=follower)
+        self.create_subscription(movement=movement1, user=leader1)
+        self.create_subscription(movement=movement1, user=leader2)
+        self.create_subscription(movement=movement2, user=follower)
+        self.create_subscription(movement=movement2, user=leader1)
+        self.create_subscription(movement=movement2, user=leader2)
         self.session.add_all(
             [
                 MUA(movement1, follower, leader1),

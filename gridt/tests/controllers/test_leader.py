@@ -1,6 +1,6 @@
 from gridt.tests.basetest import BaseTest
-from gridt.models import MovementUserAssociation as MUA, Signal
-from gridt.controllers.leader import send_signal, _add_initial_followers, _remove_all_followers
+from gridt.models import MovementUserAssociation as MUA, Signal, User, Movement
+from gridt.controllers.leader import send_signal, _add_initial_followers, _remove_all_followers, possible_leaders
 from freezegun import freeze_time
 from datetime import datetime
 
@@ -164,11 +164,91 @@ class OnSubscriptionEventsLeaderTests(BaseTest):
         ).count(), 6)
 
 
+class TestPossibleLeaders(BaseTest):
+
+    def test_possible_leaders(self):
+        """
+        movement1:
+            1 -> 5   2   4
+        movement2:
+            1 -> 5   3
+        """
+        user1 = User("user1", "test1@test", "pass")
+        user2 = User("user2", "test2@test", "pass")
+        user3 = User("user3", "test3@test", "pass")
+        user4 = User("user4", "test4@test", "pass")
+        user5 = User("user5", "test5@test", "pass")
+
+        movement1 = Movement("movement1", "twice daily")
+        movement2 = Movement("movement2", "daily")
+
+        assoc1 = MUA(movement1, user1, user2)
+        assoc2 = MUA(movement1, user1, user4)
+        assoc3 = MUA(movement1, user1, user5)
+        assoc4 = MUA(movement1, user2, None)
+        assoc5 = MUA(movement1, user3, None)
+        assoc6 = MUA(movement1, user4, None)
+        assoc7 = MUA(movement1, user5, None)
+        assoc8 = MUA(movement2, user1, user3)
+        assoc9 = MUA(movement2, user1, user5)
+        assoc10 = MUA(movement2, user2, None)
+        assoc11 = MUA(movement2, user3, None)
+        assoc12 = MUA(movement2, user4, None)
+        assoc13 = MUA(movement2, user5, None)
+
+        self.session.add_all(
+            [
+                user1,
+                user2,
+                user3,
+                user4,
+                user5,
+                movement1,
+                movement2,
+                assoc1,
+                assoc2,
+                assoc3,
+                assoc4,
+                assoc5,
+                assoc6,
+                assoc7,
+                assoc8,
+                assoc9,
+                assoc10,
+                assoc11,
+                assoc12,
+                assoc13,
+            ]
+        )
+        self.session.commit()
+
+        # Set because order does not matter
+        self.assertEqual(
+            set(possible_leaders(user1, movement1, self.session)), {user3}
+        )
+        self.assertEqual(
+            set(possible_leaders(user1, movement2, self.session)),
+            {user2, user4},
+        )
+
+        assoc1.destroy()
+
+        self.assertEqual(
+            set(possible_leaders(user1, movement1, self.session)),
+            {user2, user3},
+        )
+        self.assertEqual(
+            set(possible_leaders(user1, movement2, self.session)),
+            {user2, user4},
+        )
+
+
 class LeaderControllersTest(BaseTest):
     def test_send_signal(self):
         user1 = self.create_user()
         movement1 = self.create_movement()
         mua1 = MUA(movement1, user1, None)
+        self.create_subscription(movement=movement1, user=user1)
         self.session.add_all([user1, movement1, mua1])
         self.session.commit()
 
@@ -193,6 +273,7 @@ class LeaderControllersTest(BaseTest):
         user1 = self.create_user()
         movement1 = self.create_movement()
         assoc = MUA(movement1, user1)
+        self.create_subscription(user=user1, movement=movement1)
         self.session.add(assoc)
         self.session.commit()
         send_signal(user1.id, movement1.id)
