@@ -30,14 +30,14 @@ def _add_initial_leaders(follower_id: int, movement_id: int) -> None:
         user = load_user(follower_id, session)
         movement = load_movement(movement_id, session)
 
-        while leaders(user, movement, session).count() < 4:
-            avaiable = Leader.possible_leaders(user, movement, session).all()
+        while len(leaders(user, movement, session)) < 4:
+            avaiable = Leader.possible_leaders(user, movement, session)
             if avaiable:
                 mua = MovementUserAssociation(movement, user)
                 mua.leader = random.choice(avaiable)
                 session.add(mua)
             else:
-                if leaders(user, movement, session).count() == 0:
+                if not leaders(user, movement, session):
                     # Case no leaders have been added, add None
                     mua = MovementUserAssociation(movement, user, None)
                     session.add(mua)
@@ -78,7 +78,7 @@ def _remove_all_leaders(follower_id: int, movement_id: int) -> None:
             if not mua.leader:
                 continue
 
-            poss_followers = possible_followers(mua.leader, mua.movement, session).all()
+            poss_followers = possible_followers(mua.leader, mua.movement, session)
             # Add new MUAs for each former leader.
             if poss_followers:
                 new_follower = random.choice(poss_followers)
@@ -95,9 +95,8 @@ on_unsubscription(_remove_all_leaders)
 def get_leader(follower_id: int, movement_id: int, leader_id: int):
     """Get a leader for a follower in movement and list his history."""
     with session_scope() as session:
-        leader = (
-            session.query(User)
-            .join(MovementUserAssociation.leader)
+        leader_link = (
+            session.query(MovementUserAssociation)
             .filter(
                 MovementUserAssociation.follower_id == follower_id,
                 MovementUserAssociation.movement_id == movement_id,
@@ -107,7 +106,7 @@ def get_leader(follower_id: int, movement_id: int, leader_id: int):
             .one()
         )
 
-        resp = leader.to_json()
+        resp = leader_link.leader.to_json()
         history = (
             session.query(Signal)
             .filter_by(leader_id=leader_id, movement_id=movement_id)
@@ -124,8 +123,7 @@ def follows_leader(follower_id: int, movement_id: int, leader_id: int):
     """Check if follower is following leader in movement."""
     with session_scope() as session:
         leader = (
-            session.query(User)
-            .join(MovementUserAssociation.leader)
+            session.query(MovementUserAssociation)
             .filter(
                 MovementUserAssociation.follower_id == follower_id,
                 MovementUserAssociation.movement_id == movement_id,
@@ -155,7 +153,7 @@ def swap_leader(follower_id: int, movement_id: int, leader_id: int) -> dict:
 
         # If there are no other possible leaders than we can't perform the
         # swap.
-        poss_leaders = Leader.possible_leaders(follower, movement, session).all()
+        poss_leaders = Leader.possible_leaders(follower, movement, session)
         if not poss_leaders:
             return None
 
@@ -228,15 +226,14 @@ def possible_followers(
 
     available_leaderless = (
         session
-        .query(User)
-        .join(User.follower_associations)
+        .query(MUA)
         .filter(
-            valid_muas.c.follower_id == User.id,
+            valid_muas.c.follower_id == MUA.follower_id,
             valid_muas.c.mua_count < 4,
         )
         .group_by(MUA.follower_id).filter(
-            not_(User.id == user.id), not_(User.id.in_(follower_ids))
+            not_(MUA.follower_id == user.id), not_(MUA.follower_id.in_(follower_ids))
         )
     )
 
-    return available_leaderless
+    return [mua.follower for mua in available_leaderless]

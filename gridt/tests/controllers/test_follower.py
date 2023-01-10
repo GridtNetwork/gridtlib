@@ -419,7 +419,7 @@ class SwapTest(BaseTest):
         )
         self.session.add_all([user1, user2, user3, movement])
         self.session.add_all([user4, user5, assoc1, assoc2, assoc3, assoc4])
-        self.assertEqual(leaders(user2, movement, self.session).count(), 1)
+        self.assertEqual(len(leaders(user2, movement, self.session)), 1)
 
     def test_swap_leader_complicated(self):
         """

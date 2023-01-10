@@ -25,34 +25,33 @@ def session_scope():
         session.close()
 
 
-def leaders(user: User, movement: Movement, session: Session) -> Query:
+def leaders(user: User, movement: Movement, session: Session) -> list:
     """
     Create a query for the leaders of a user in a movement from a session.
 
     :param gridt.models.user.User user: User that needs new leaders.
     :param list exclude: List of users (can be a user model or an id) to
     exclude from search.
-    :returns: Query object
+    :returns: List object
     """
-    return (
-        session.query(User)
-        .join(MovementUserAssociation.leader)
+    return [ mua.leader for mua in
+        session.query(MovementUserAssociation)
         .filter(
             MovementUserAssociation.follower_id == user.id,
             MovementUserAssociation.movement_id == movement.id,
             not_(MovementUserAssociation.leader_id.is_(None)),
-            MovementUserAssociation.destroyed.is_(None),
+            MovementUserAssociation.destroyed.is_(None)
         )
-    )
+    ]
 
 
 def _find_last_signal(
-    leader: User, movement: Movement, session: Session
+    leader_id: int, movement_id: int, session: Session
 ) -> Signal:
     """Find the last signal the leader has sent to the movement."""
     return (
         session.query(Signal)
-        .filter_by(leader=leader, movement=movement)
+        .filter_by(leader_id=leader_id, movement_id=movement_id)
         .order_by(desc("time_stamp"))
         .first()
     )
@@ -74,7 +73,7 @@ def extend_movement_json(movement, user, session):
     if is_subscribed:
         movement_json["subscribed"] = True
 
-        last_signal = _find_last_signal(user, movement, session)
+        last_signal = _find_last_signal(user.id, movement.id, session)
         movement_json["last_signal_sent"] = (
             last_signal.to_json() if last_signal else None
         )
@@ -83,7 +82,7 @@ def extend_movement_json(movement, user, session):
         for leader in leaders(user, movement, session):
             leader_json = leader.to_json()
 
-            last_leader_signal = _find_last_signal(leader, movement, session)
+            last_leader_signal = _find_last_signal(leader.id, movement.id, session)
             if last_leader_signal:
                 leader_json.update(last_signal=last_leader_signal.to_json())
 

@@ -4,6 +4,7 @@ from gridt.models import MovementUserAssociation
 
 from gridt.controllers.subscription import on_subscription, on_unsubscription, is_subscribed
 from gridt.controllers import follower as Follower
+from gridt.controllers import subscription as Subscription
 
 import random
 
@@ -75,7 +76,7 @@ def _remove_all_followers(leader_id: int, movement_id: int) -> None:
 
         # For each follower removed try to find a new leader
         for mua in leader_muas_to_destroy:
-            poss_new_leaders = possible_leaders(mua.follower, mua.movement, session).all()
+            poss_new_leaders = possible_leaders(mua.follower, mua.movement, session)
             poss_new_leaders = [l for l in poss_new_leaders if l.id != leader_id]
             # Add new MUAs for each former follower.
             if poss_new_leaders:
@@ -110,18 +111,25 @@ def possible_leaders(
     user: User, movement: Movement, session: Session
 ) -> Query:
     """Find possible leaders for a user in a movement."""
-    return (
-        session.query(User)
-        .join(User.follower_associations)
-        .filter(
-            not_(User.id == user.id),
-            not_(
-                User.id.in_(
-                    leaders(user, movement, session).with_entities(User.id)
-                )
-            ),
-            MovementUserAssociation.movement_id == movement.id,
-            MovementUserAssociation.destroyed.is_(None)
-        )
-        .group_by(User.id)
+    MUA = MovementUserAssociation
+
+    leader_ids = session.query(MUA.leader_id).filter(
+        MUA.movement_id == movement.id,
+        not_(MUA.leader_id.is_(None)),
+        MUA.follower_id == user.id,
+        MUA.destroyed.is_(None)
     )
+
+    possible_leaders = [mua.follower for mua in
+        session.query(MUA)
+        .filter(
+            MUA.movement_id == movement.id,
+            MUA.destroyed.is_(None),
+            not_(MUA.follower_id == user.id)
+        ).group_by(MUA.follower_id)
+        .filter(not_(MUA.follower_id.in_(leader_ids)))
+    ]
+    
+    # IDK why but if I don't add them to the session it crashes
+    session.add_all(possible_leaders) 
+    return possible_leaders

@@ -1,9 +1,6 @@
-from sqlalchemy import Column, Integer, String, or_, func
-from sqlalchemy.orm import relationship
-from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy import Column, Integer, String
 
 from gridt.db import Base
-from .movement_user_association import MovementUserAssociation
 
 
 class Movement(Base):
@@ -39,18 +36,6 @@ class Movement(Base):
     interval = Column(String(20), nullable=False)
     short_description = Column(String(100))
     description = Column(String(1000))
-
-    user_associations = relationship(
-        "MovementUserAssociation",
-        back_populates="movement",
-        cascade="all, delete-orphan",
-    )
-
-    users = association_proxy(
-        "user_associations",
-        "follower",
-        creator=lambda user: MovementUserAssociation(follower=user),
-    )
 
     def __init__(self, name, interval, short_description="", description=""):
         self.name = name

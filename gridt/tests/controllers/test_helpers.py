@@ -28,7 +28,7 @@ class TestHelpers(BaseTest):
         self.session.add_all([user1, user2, user3, assoc1, assoc2, assoc3])
         self.session.commit()
 
-        self.assertEqual(len(list(leaders(user1, movement, self.session))), 2)
+        self.assertEqual(len(leaders(user1, movement, self.session)), 2)
         self.assertEqual(
             set(leaders(user1, movement, self.session)),
             set([user2, user3]),
@@ -59,7 +59,7 @@ class TestHelpers(BaseTest):
         )
         self.session.commit()
 
-        self.assertEqual(len(list(leaders(user1, movement, self.session))), 2)
+        self.assertEqual(len(leaders(user1, movement, self.session)), 2)
         self.assertEqual(
             set(leaders(movement, user1, self.session)),
             set([user2, user3]),
@@ -113,5 +113,5 @@ class FindSignalTest(BaseTest):
             send_signal(u2_id, m1_id)
 
         self.session.add_all([user1, movement1])
-        signal = _find_last_signal(user1, movement1, self.session)
+        signal = _find_last_signal(u1_id, m1_id, self.session)
         self.assertEqual(signal.time_stamp, dates[2])

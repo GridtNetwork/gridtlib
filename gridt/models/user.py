@@ -1,14 +1,11 @@
 import datetime
 import jwt
 from sqlalchemy import Column, Integer, String, UnicodeText
-from sqlalchemy.orm import relationship, object_session
-from sqlalchemy.ext.associationproxy import association_proxy
 
 from passlib.apps import custom_app_context as pwd_context
 import hashlib
 
 from gridt.db import Base
-from .movement_user_association import MovementUserAssociation
 
 
 class User(Base):
@@ -24,10 +21,6 @@ class User(Base):
     :attribute follower_associations: All associations to movements where the
         follower is this user. Useful for determining the leaders of a user.
     :attribute movements: List of all movements that the user is subscribed to.
-
-    :todo: Make a user.leaders dictionary attribute that has movements as the
-        keys and lists of leaders as the values. Right now this is solved with
-        the leaders method.
     """
 
     __tablename__ = "users"
@@ -38,17 +31,6 @@ class User(Base):
     password_hash = Column(String(128))
     role = Column(String(32))
     bio = Column(UnicodeText)
-
-    follower_associations = relationship(
-        "MovementUserAssociation",
-        foreign_keys="MovementUserAssociation.follower_id",
-    )
-
-    movements = association_proxy(
-        "follower_associations",
-        "movement",
-        creator=lambda movement: MovementUserAssociation(movement=movement),
-    )
 
     def __init__(self, username, email, password, role="user", bio=""):
         self.username = username

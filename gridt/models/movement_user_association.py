@@ -29,12 +29,8 @@ class MovementUserAssociation(Base):
     created = Column(DateTime(timezone=True))
     destroyed = Column(DateTime(timezone=True))
 
-    movement = relationship("Movement", back_populates="user_associations")
-    follower = relationship(
-        "User",
-        foreign_keys=[follower_id],
-        back_populates="follower_associations",
-    )
+    movement = relationship("Movement", foreign_keys=[movement_id])
+    follower = relationship("User", foreign_keys=[follower_id])
     leader = relationship("User", foreign_keys=[leader_id])
 
     def __init__(self, movement=None, follower=None, leader=None):
