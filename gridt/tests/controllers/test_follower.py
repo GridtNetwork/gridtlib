@@ -3,7 +3,7 @@ from unittest.mock import patch
 from gridt.tests.basetest import BaseTest
 from gridt.controllers.helpers import leaders
 from gridt.models import User, Movement, MovementUserAssociation as MUA
-from gridt.controllers.follower import swap_leader, get_leader, _add_initial_leaders, _remove_all_leaders, possible_followers
+from gridt.controllers.follower import swap_leader, get_leader, add_initial_leaders, remove_all_leaders, possible_followers
 from gridt.controllers.leader import send_signal
 from datetime import datetime
 
@@ -134,7 +134,7 @@ class OnSubscriptionEventsFollowerTests(BaseTest):
         mE_id = mE.id
 
         # Test 0 users in movement A
-        _add_initial_leaders(follower_id, mA_id)
+        add_initial_leaders(follower_id, mA_id)
         self.assertEqual(self.session.query(MUA).filter(MUA.movement_id == mA_id).count(), 1)
         self.assertEqual(self.session.query(MUA).filter(
             MUA.follower_id == follower_id,
@@ -144,7 +144,7 @@ class OnSubscriptionEventsFollowerTests(BaseTest):
         ).count(), 1)
 
         # Test 1 user in movement B
-        _add_initial_leaders(follower_id, mB_id)
+        add_initial_leaders(follower_id, mB_id)
         self.assertEqual(self.session.query(MUA).filter(
             MUA.movement_id == mB_id,
             MUA.follower_id == follower_id
@@ -157,7 +157,7 @@ class OnSubscriptionEventsFollowerTests(BaseTest):
         ).count(), 1)
 
         # Test 2 users in movement C
-        _add_initial_leaders(follower_id, mC_id)
+        add_initial_leaders(follower_id, mC_id)
         self.assertEqual(self.session.query(MUA).filter(
             MUA.follower_id == follower_id,
             MUA.movement_id == mC_id,
@@ -177,7 +177,7 @@ class OnSubscriptionEventsFollowerTests(BaseTest):
         ).count(), 1)
 
         # Test 5 users in movement D
-        _add_initial_leaders(follower_id, mD_id)
+        add_initial_leaders(follower_id, mD_id)
         self.assertEqual(self.session.query(MUA).filter(
             MUA.follower_id == follower_id,
             MUA.leader_id.in_([u1_id, u2_id, u3_id, u4_id, u5_id]),
@@ -186,7 +186,7 @@ class OnSubscriptionEventsFollowerTests(BaseTest):
         ).count(), 4)
 
         # Test 5 users in movement E but all leaders have 4 followers
-        _add_initial_leaders(follower_id, mE_id)
+        add_initial_leaders(follower_id, mE_id)
         self.assertEqual(self.session.query(MUA).filter(
             MUA.follower_id == follower_id,
             MUA.leader_id.in_([u1_id, u2_id, u3_id, u4_id, u5_id]),
@@ -238,7 +238,7 @@ class OnSubscriptionEventsFollowerTests(BaseTest):
 
         # Test 0 users in movement A
         with freeze_time("2023-01-03 00:00:00+01:00"):
-            _remove_all_leaders(follower_id, mA_id)
+            remove_all_leaders(follower_id, mA_id)
         self.assertEqual(self.session.query(MUA).filter(
             MUA.follower_id == follower_id,
             MUA.leader_id == None,
@@ -248,7 +248,7 @@ class OnSubscriptionEventsFollowerTests(BaseTest):
 
         # Test 1 user in movement B
         with freeze_time("2023-01-03 00:00:00+01:00"):
-            _remove_all_leaders(follower_id, mB_id)
+            remove_all_leaders(follower_id, mB_id)
         self.assertEqual(self.session.query(MUA).filter(
             MUA.follower_id == follower_id,
             MUA.leader_id == u1_id,
@@ -262,7 +262,7 @@ class OnSubscriptionEventsFollowerTests(BaseTest):
 
         # Test 2 users in movement C
         with freeze_time("2023-01-03 00:00:00+01:00"):
-            _remove_all_leaders(follower_id, mC_id)
+            remove_all_leaders(follower_id, mC_id)
         self.assertEqual(self.session.query(MUA).filter(
             MUA.follower_id == follower_id,
             MUA.movement_id == mC_id,
@@ -276,7 +276,7 @@ class OnSubscriptionEventsFollowerTests(BaseTest):
 
         # Test 3 users in movement D
         with freeze_time("2023-01-03 00:00:00+01:00"):
-            _remove_all_leaders(follower_id, mD_id)
+            remove_all_leaders(follower_id, mD_id)
         self.assertEqual(self.session.query(MUA).filter(
             MUA.follower_id == follower_id,
             MUA.movement_id == mD_id,
@@ -300,7 +300,7 @@ class OnSubscriptionEventsFollowerTests(BaseTest):
 
         # Test 3 users in movement E (follower not in movement)
         with freeze_time("2023-01-03 00:00:00+01:00"):
-            _remove_all_leaders(follower_id, mE_id)
+            remove_all_leaders(follower_id, mE_id)
         self.assertEqual(self.session.query(MUA).filter(
             MUA.movement_id == mE_id,
             MUA.destroyed.is_(None)

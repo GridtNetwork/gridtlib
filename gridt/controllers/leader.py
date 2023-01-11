@@ -1,8 +1,7 @@
-from .helpers import session_scope, load_movement, load_user, leaders
+from .helpers import session_scope, load_movement, load_user
 from gridt.models import Signal, User, Movement
 from gridt.models import MovementUserAssociation
 
-from gridt.controllers.subscription import on_subscription, on_unsubscription, is_subscribed
 from gridt.controllers import follower as Follower
 from gridt.controllers import subscription as Subscription
 
@@ -13,7 +12,7 @@ from sqlalchemy import not_
 from sqlalchemy.orm.session import Session
 
 
-def _add_initial_followers(leader_id: int, movement_id: int) -> None:
+def add_initial_followers(leader_id: int, movement_id: int) -> None:
     """
     This funciton adds the initial followers of a leader joining a movement
 
@@ -43,14 +42,9 @@ def _add_initial_followers(leader_id: int, movement_id: int) -> None:
             )
             for a in assoc_none:
                 a.destroy()
-    
 
 
-# Add a listener to new subscription event to get the initial followers
-on_subscription(_add_initial_followers)
-
-
-def _remove_all_followers(leader_id: int, movement_id: int) -> None:
+def remove_all_followers(leader_id: int, movement_id: int) -> None:
     """
     This funciton removes all follower of a leader upon leaving a movment.
     It then tries to assign new leaders to followers.
@@ -90,17 +84,13 @@ def _remove_all_followers(leader_id: int, movement_id: int) -> None:
                 session.add(new_mua)
 
 
-# Add a listener to remove subscription event to remove all the followers for a leader.
-on_unsubscription(_remove_all_followers)
-
-
 def send_signal(leader_id: int, movement_id: int, message: str = None):
     """Send signal as a leader in a movement, optionally with a message."""
     with session_scope() as session:
         leader = load_user(leader_id, session)
         movement = load_movement(movement_id, session)
 
-        assert is_subscribed(leader_id, movement_id)
+        assert Subscription.is_subscribed(leader_id, movement_id)
 
         signal = Signal(leader, movement, message)
         session.add(signal)

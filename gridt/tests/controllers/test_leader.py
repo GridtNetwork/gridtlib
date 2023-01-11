@@ -1,6 +1,6 @@
 from gridt.tests.basetest import BaseTest
 from gridt.models import MovementUserAssociation as MUA, Signal, User, Movement
-from gridt.controllers.leader import send_signal, _add_initial_followers, _remove_all_followers, possible_leaders
+from gridt.controllers.leader import send_signal, add_initial_followers, remove_all_followers, possible_leaders
 from freezegun import freeze_time
 from datetime import datetime
 
@@ -43,7 +43,7 @@ class OnSubscriptionEventsLeaderTests(BaseTest):
         mB_id = mB.id
 
         # Test 5 users in Movement A (partily connected)
-        _add_initial_followers(leader_id, mA_id)
+        add_initial_followers(leader_id, mA_id)
         self.assertEqual(self.session.query(MUA).filter(
             MUA.leader_id == leader_id,
             MUA.follower_id.in_([u1_id, u2_id, u3_id, u4_id, u5_id]),
@@ -52,7 +52,7 @@ class OnSubscriptionEventsLeaderTests(BaseTest):
         ).count(), 5)  # This is 5 because we priorities all users having 4 leaders
 
         # Test 5 users in Movement A (fully connected)
-        _add_initial_followers(leader_id, mB_id)
+        add_initial_followers(leader_id, mB_id)
         self.assertEqual(self.session.query(MUA).filter(
             MUA.leader_id == leader_id,
             MUA.follower_id.in_([u1_id, u2_id, u3_id, u4_id, u5_id]),
@@ -104,7 +104,7 @@ class OnSubscriptionEventsLeaderTests(BaseTest):
 
         # Test removing all of 0 followers in movement A
         with freeze_time("2023-01-03 13:30:00+01:00"):
-            _remove_all_followers(leader_id, mA_id)
+            remove_all_followers(leader_id, mA_id)
         self.assertEqual(self.session.query(MUA).filter(
             MUA.leader_id == leader_id,
             MUA.movement_id == mA_id,
@@ -118,7 +118,7 @@ class OnSubscriptionEventsLeaderTests(BaseTest):
 
         # Test removing all of 1 follower in movement B
         with freeze_time("2023-01-03 13:30:00+01:00"):
-            _remove_all_followers(leader_id, mB_id)
+            remove_all_followers(leader_id, mB_id)
         self.assertEqual(self.session.query(MUA).filter(
             MUA.leader_id == leader_id,
             MUA.movement_id == mB_id,
@@ -127,7 +127,7 @@ class OnSubscriptionEventsLeaderTests(BaseTest):
 
         # Test 2 users in movement C
         with freeze_time("2023-01-03 13:30:00+01:00"):
-            _remove_all_followers(leader_id, mC_id)
+            remove_all_followers(leader_id, mC_id)
         self.assertEqual(self.session.query(MUA).filter(
             MUA.leader_id == leader_id,
             MUA.movement_id == mC_id,
@@ -142,7 +142,7 @@ class OnSubscriptionEventsLeaderTests(BaseTest):
 
         # Test 3 users in movement D
         with freeze_time("2023-01-03 13:30:00+01:00"):
-            _remove_all_followers(leader_id, mD_id)
+            remove_all_followers(leader_id, mD_id)
         self.assertEqual(self.session.query(MUA).filter(
             MUA.leader_id == leader_id,
             MUA.movement_id == mD_id,
@@ -157,7 +157,7 @@ class OnSubscriptionEventsLeaderTests(BaseTest):
 
         # Test 3 users in movement E (follower not in movement)
         with freeze_time("2023-01-03 00:00:00+01:00"):
-            _remove_all_followers(leader_id, mE_id)
+            remove_all_followers(leader_id, mE_id)
         self.assertEqual(self.session.query(MUA).filter(
             MUA.movement_id == mE_id,
             MUA.destroyed.is_(None)

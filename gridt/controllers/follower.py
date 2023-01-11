@@ -10,7 +10,7 @@ from .helpers import (
     load_user,
     leaders, 
 )
-from gridt.controllers.subscription import on_subscription, on_unsubscription, get_subscribers
+
 from gridt.controllers import leader as Leader
 from gridt.models import User, MovementUserAssociation, Signal, Movement
 
@@ -18,7 +18,7 @@ from gridt.models import User, MovementUserAssociation, Signal, Movement
 MESSAGE_HISTORY_MAX_DEPTH = 3
 
 
-def _add_initial_leaders(follower_id: int, movement_id: int) -> None:
+def add_initial_leaders(follower_id: int, movement_id: int) -> None:
     """
     This function adds the initial leaders for a follower when the follower first joins the movement.
 
@@ -44,11 +44,7 @@ def _add_initial_leaders(follower_id: int, movement_id: int) -> None:
                 break
 
 
-# Add a listener to new subscription event to get the initial leaders
-on_subscription(_add_initial_leaders)
-
-
-def _remove_all_leaders(follower_id: int, movement_id: int) -> None:
+def remove_all_leaders(follower_id: int, movement_id: int) -> None:
     """
     This function removes all leaders from a follower when the follower leaves a movement.
     It then tries to find new followers for the leaders.
@@ -86,10 +82,6 @@ def _remove_all_leaders(follower_id: int, movement_id: int) -> None:
                     movement, new_follower, mua.leader
                 )
                 session.add(new_mua)
-
-
-# Add a listener to remove subscription event to remove all the leaders of a follower.
-on_unsubscription(_remove_all_leaders)
 
 
 def get_leader(follower_id: int, movement_id: int, leader_id: int):

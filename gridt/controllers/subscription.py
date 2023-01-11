@@ -1,4 +1,5 @@
 from gridt.models import Subscription
+from gridt.controllers import follower as Follower, leader as Leader
 import gridt.exc as E 
 from .helpers import (
     session_scope,
@@ -10,7 +11,6 @@ from .helpers import (
 from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import Session
 
-import types
 
 def _get_subscription(user_id: int, movement_id: int, session: Session) -> Query:
     """
@@ -59,33 +59,6 @@ def is_subscribed(user_id: int, movement_id: int) -> bool:
     return True
 
 
-# set of events to listening to the subscription of a user to a movement
-_on_subscription_events = set()
-
-
-def on_subscription(event_func: types.FunctionType) -> None:
-    """
-    This function adds an eventlistener to the function new_subscription
-
-    Args:
-        event_func (types.FunctionType): A function that should be called whenever a new subscription is made.
-        The function should be in the type (user_id: int, movement_id: int) -> None.
-    """
-    _on_subscription_events.add(event_func)
-
-
-def _notify_subsciption_listeners(user_id: int, movement_id: int) -> None:
-    """
-    This helper function calls all event functions for each listener.
-
-    Args:
-        user_id (int): The id of the user who just subscribed.
-        movement_id (int): The id of the movement the user subscribed to.
-    """
-    for event in _on_subscription_events:
-        event(user_id, movement_id)
-
-
 def new_subscription(user_id: int, movement_id: int) -> dict:
     """
     Creates a new subscription between a user and a movement.
@@ -105,37 +78,10 @@ def new_subscription(user_id: int, movement_id: int) -> dict:
         session.add(subscription)
         subscription_json = subscription.to_json()
 
-    # Emit message to all listeners
-    _notify_subsciption_listeners(user_id, movement_id)
+    Follower.add_initial_leaders(user_id, movement_id)
+    Leader.add_initial_followers(user_id, movement_id)
 
     return subscription_json
-
-
-# set of events listening to the unsubscription of a user to a movement
-_on_unsubscription_events = set()
-
-
-def on_unsubscription(event_func: types.FunctionType) -> None:
-    """
-    This function adds an event listener to the function remove subscription
-
-    Args:
-        event_func (types.FunctionType): A function that should be called whenever a subscriptions is ended.
-        The function should be in the type (user_id: int, movement_id: int) -> None
-    """
-    _on_unsubscription_events.add(event_func)
-
-
-def _notify_remove_subscription_listeners(user_id: int, movement_id: int):
-    """
-    This helper function calls all notify functions for each listener.
-
-    Args:
-        user_id (int): The id of the user who subscription to the movement was removed.
-        movement_id (int): The id of the movement who relation to the user was removed.
-    """
-    for event in _on_unsubscription_events:
-        event(user_id, movement_id)
 
 
 def remove_subscription(user_id: int, movement_id: int) -> dict:
@@ -156,8 +102,8 @@ def remove_subscription(user_id: int, movement_id: int) -> dict:
         session.add(subscription)
         removed_json = subscription.to_json()
 
-    # Emit event to listeners
-    _notify_remove_subscription_listeners(user_id, movement_id)
+    Follower.remove_all_leaders(user_id, movement_id)
+    Leader.remove_all_followers(user_id, movement_id)
 
     return removed_json
 
