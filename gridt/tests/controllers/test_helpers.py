@@ -1,7 +1,7 @@
 from datetime import datetime
 from freezegun import freeze_time
 from gridt.tests.basetest import BaseTest
-from gridt.models import User, MovementUserAssociation as MUA, Movement
+from gridt.models import User, MovementToMovementLink, Movement
 from gridt.controllers.helpers import (
     leaders,
     _find_last_signal,
@@ -21,9 +21,9 @@ class TestHelpers(BaseTest):
 
         movement = Movement("movement1", "daily")
 
-        assoc1 = MUA(movement, user1, user2)
-        assoc2 = MUA(movement, user1, user3)
-        assoc3 = MUA(movement, user2, user4)
+        assoc1 = MovementToMovementLink(movement, user1, user2)
+        assoc2 = MovementToMovementLink(movement, user1, user3)
+        assoc3 = MovementToMovementLink(movement, user2, user4)
 
         self.session.add_all([user1, user2, user3, assoc1, assoc2, assoc3])
         self.session.commit()
@@ -49,9 +49,9 @@ class TestHelpers(BaseTest):
 
         movement = Movement("movement1", "daily")
 
-        assoc1 = MUA(movement, user1, user2)
-        assoc2 = MUA(movement, user1, user3)
-        assoc3 = MUA(movement, user1, user4)
+        assoc1 = MovementToMovementLink(movement, user1, user2)
+        assoc2 = MovementToMovementLink(movement, user1, user3)
+        assoc3 = MovementToMovementLink(movement, user1, user4)
         assoc3.destroy()
 
         self.session.add_all(
@@ -76,10 +76,10 @@ class FindSignalTest(BaseTest):
         self.create_subscription(movement=movement1, user=user2)
         self.create_subscription(movement=movement2, user=user1)
         self.create_subscription(movement=movement2, user=user2)
-        assoc1 = MUA(movement1, user1)
-        assoc2 = MUA(movement1, user2)
-        assoc3 = MUA(movement2, user1)
-        assoc4 = MUA(movement2, user2)
+        assoc1 = MovementToMovementLink(movement1, user1)
+        assoc2 = MovementToMovementLink(movement1, user2)
+        assoc3 = MovementToMovementLink(movement2, user1)
+        assoc4 = MovementToMovementLink(movement2, user2)
         self.session.add_all(
             [
                 user1,

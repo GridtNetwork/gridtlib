@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.ext.associationproxy import association_proxy
 
 from gridt.db import Base
-from .movement_user_association import MovementUserAssociation
+from .movement_to_movement_link import MovementToMovementLink
 
 
 class Movement(Base):
@@ -28,7 +28,7 @@ class Movement(Base):
     :attribute users: All user that have been subscribed to this movement.
     :attribute user_associations: All instances of UserAssociation that point
     to this movement
-    :class:`models.movement_user_association.MovementUserAssociation` with that
+    :class:`models.movement_user_association.MovementToMovementLink` with that
     link to this movement.
     """
 
@@ -41,7 +41,7 @@ class Movement(Base):
     description = Column(String(1000))
 
     user_associations = relationship(
-        "MovementUserAssociation",
+        "MovementToMovementLink",
         back_populates="movement",
         cascade="all, delete-orphan",
     )
@@ -49,7 +49,7 @@ class Movement(Base):
     users = association_proxy(
         "user_associations",
         "follower",
-        creator=lambda user: MovementUserAssociation(follower=user),
+        creator=lambda user: MovementToMovementLink(follower=user),
     )
 
     def __init__(self, name, interval, short_description="", description=""):

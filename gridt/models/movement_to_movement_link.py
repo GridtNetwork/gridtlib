@@ -4,7 +4,7 @@ from sqlalchemy.orm import relationship
 from gridt.db import Base
 
 
-class MovementUserAssociation(Base):
+class MovementToMovementLink(Base):
     """
     Association class that lies at the foundation of the network.
     Think of this class as the arrows that connect followers with

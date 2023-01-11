@@ -1,6 +1,6 @@
 from .helpers import session_scope, load_movement, load_user, leaders
 from gridt.models import Signal, User, Movement
-from gridt.models import MovementUserAssociation
+from gridt.models import MovementToMovementLink
 
 from gridt.controllers.subscription import on_subscription, on_unsubscription, is_subscribed
 from gridt.controllers import follower as Follower
@@ -26,18 +26,18 @@ def _add_initial_followers(leader_id: int, movement_id: int) -> None:
 
         # Give that new subscriber other followers to follow in the movement
         for new_follower in Follower.possible_followers(user, movement, session):
-            mua = MovementUserAssociation(movement, new_follower, leader=user)
-            session.add(mua)
+            movement_to_movement_link = MovementToMovementLink(movement, new_follower, leader=user)
+            session.add(movement_to_movement_link)
 
             # Remove any None associations the new follower may have had
             assoc_none = (
-                session.query(MovementUserAssociation)
+                session.query(MovementToMovementLink)
                 .filter(
-                    MovementUserAssociation.movement_id == movement.id,
-                    MovementUserAssociation.follower_id == new_follower.id,
-                    MovementUserAssociation.leader_id.is_(None),
+                    MovementToMovementLink.movement_id == movement.id,
+                    MovementToMovementLink.follower_id == new_follower.id,
+                    MovementToMovementLink.leader_id.is_(None),
                 )
-                .group_by(MovementUserAssociation.follower_id)
+                .group_by(MovementToMovementLink.follower_id)
                 .all()
             )
             for a in assoc_none:
@@ -62,31 +62,31 @@ def _remove_all_followers(leader_id: int, movement_id: int) -> None:
         movement = load_movement(movement_id, session)
 
         # Remove all links to the removed subscriber
-        leader_muas_to_destroy = session.query(MovementUserAssociation).filter(
-            MovementUserAssociation.movement_id == movement_id,
-            MovementUserAssociation.destroyed.is_(None),
-            MovementUserAssociation.leader_id == leader_id,
+        leader_movement_to_movement_links_to_destroy = session.query(MovementToMovementLink).filter(
+            MovementToMovementLink.movement_id == movement_id,
+            MovementToMovementLink.destroyed.is_(None),
+            MovementToMovementLink.leader_id == leader_id,
         ).all()
 
-        for mua in leader_muas_to_destroy:
-            mua.destroy()
+        for movement_to_movement_link in leader_movement_to_movement_links_to_destroy:
+            movement_to_movement_link.destroy()
 
         session.commit()
 
         # For each follower removed try to find a new leader
-        for mua in leader_muas_to_destroy:
-            poss_new_leaders = possible_leaders(mua.follower, mua.movement, session).all()
+        for movement_to_movement_link in leader_movement_to_movement_links_to_destroy:
+            poss_new_leaders = possible_leaders(movement_to_movement_link.follower, movement_to_movement_link.movement, session).all()
             poss_new_leaders = [l for l in poss_new_leaders if l.id != leader_id]
             # Add new MUAs for each former follower.
             if poss_new_leaders:
                 new_leader = random.choice(poss_new_leaders)
-                new_mua = MovementUserAssociation(
-                    movement, mua.follower, new_leader
+                new_movement_to_movement_link = MovementToMovementLink(
+                    movement, movement_to_movement_link.follower, new_leader
                 )
-                session.add(new_mua)
+                session.add(new_movement_to_movement_link)
             else:
-                new_mua = MovementUserAssociation(movement, mua.follower, None)
-                session.add(new_mua)
+                new_movement_to_movement_link = MovementToMovementLink(movement, movement_to_movement_link.follower, None)
+                session.add(new_movement_to_movement_link)
 
 
 # Add a listener to remove subscription event to remove all the followers for a leader.
@@ -120,8 +120,8 @@ def possible_leaders(
                     leaders(user, movement, session).with_entities(User.id)
                 )
             ),
-            MovementUserAssociation.movement_id == movement.id,
-            MovementUserAssociation.destroyed.is_(None)
+            MovementToMovementLink.movement_id == movement.id,
+            MovementToMovementLink.destroyed.is_(None)
         )
         .group_by(User.id)
     )

@@ -20,7 +20,7 @@ from gridt.controllers.user import (
     get_identity
 )
 import gridt.exc as E
-from gridt.models import Subscription, MovementUserAssociation as MUA
+from gridt.models import Subscription, MovementToMovementLink
 
 from freezegun import freeze_time
 from datetime import datetime
@@ -260,18 +260,18 @@ class SubscriptionControllerIntergrationTests(BaseTest):
         self.assertNotIn(antonin_json, get_subscribers(movement_2_id))
         self.assertNotIn(andrei_json, get_subscribers(movement_2_id))
 
-        self.assertEqual(self.session.query(MUA).filter(
-            MUA.follower_id == antonin_id,
-            MUA.movement_id == movement_1_id,
-            MUA.leader_id == andrei_id,
-            MUA.destroyed.is_(None),
+        self.assertEqual(self.session.query(MovementToMovementLink).filter(
+            MovementToMovementLink.follower_id == antonin_id,
+            MovementToMovementLink.movement_id == movement_1_id,
+            MovementToMovementLink.leader_id == andrei_id,
+            MovementToMovementLink.destroyed.is_(None),
         ).count(), 1, "When a user joins a movement followers without leaders should follow them")
 
-        self.assertEqual(self.session.query(MUA).filter(
-            MUA.follower_id == andrei_id,
-            MUA.movement_id == movement_1_id,
-            MUA.leader_id == antonin_id,
-            MUA.destroyed.is_(None),
+        self.assertEqual(self.session.query(MovementToMovementLink).filter(
+            MovementToMovementLink.follower_id == andrei_id,
+            MovementToMovementLink.movement_id == movement_1_id,
+            MovementToMovementLink.leader_id == antonin_id,
+            MovementToMovementLink.destroyed.is_(None),
         ).count(), 1, "When a user joins a movement they should be given leaders")
     
     def test_unsubscribed(self):
@@ -306,10 +306,10 @@ class SubscriptionControllerIntergrationTests(BaseTest):
         self.assertNotIn(antonin_json, get_subscribers(movement_id))
         self.assertListEqual([], get_subscriptions(antonin_id))
 
-        self.assertEqual(self.session.query(MUA).filter(
-            MUA.follower_id == antonin_id,
-            MUA.movement_id == movement_id,
-            MUA.leader_id.is_(None),
-            MUA.destroyed == datetime(2023, 1, 6, 10, 0),
+        self.assertEqual(self.session.query(MovementToMovementLink).filter(
+            MovementToMovementLink.follower_id == antonin_id,
+            MovementToMovementLink.movement_id == movement_id,
+            MovementToMovementLink.leader_id.is_(None),
+            MovementToMovementLink.destroyed == datetime(2023, 1, 6, 10, 0),
         ).count(), 1, "Mua must be destroyed when user is removed from movement.")
 
