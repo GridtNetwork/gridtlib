@@ -7,8 +7,7 @@ from sqlalchemy.orm.session import Session
 from .helpers import (
     session_scope,
     load_movement,
-    load_user,
-    leaders, 
+    load_user, 
 )
 
 from gridt.controllers import leader as Leader
@@ -30,14 +29,14 @@ def add_initial_leaders(follower_id: int, movement_id: int) -> None:
         user = load_user(follower_id, session)
         movement = load_movement(movement_id, session)
 
-        while len(leaders(user, movement, session)) < 4:
+        while len(get_leaders(user, movement, session)) < 4:
             avaiable = Leader.possible_leaders(user, movement, session)
             if avaiable:
                 mua = MovementUserAssociation(movement, user)
                 mua.leader = random.choice(avaiable)
                 session.add(mua)
             else:
-                if not leaders(user, movement, session):
+                if not get_leaders(user, movement, session):
                     # Case no leaders have been added, add None
                     mua = MovementUserAssociation(movement, user, None)
                     session.add(mua)
@@ -82,6 +81,26 @@ def remove_all_leaders(follower_id: int, movement_id: int) -> None:
                     movement, new_follower, mua.leader
                 )
                 session.add(new_mua)
+
+
+def get_leaders(user: User, movement: Movement, session: Session) -> list:
+    """
+    Create a query for the leaders of a user in a movement from a session.
+
+    :param gridt.models.user.User user: User that needs new leaders.
+    :param list exclude: List of users (can be a user model or an id) to
+    exclude from search.
+    :returns: List object
+    """
+    return [ mua.leader for mua in
+        session.query(MovementUserAssociation)
+        .filter(
+            MovementUserAssociation.follower_id == user.id,
+            MovementUserAssociation.movement_id == movement.id,
+            not_(MovementUserAssociation.leader_id.is_(None)),
+            MovementUserAssociation.destroyed.is_(None)
+        )
+    ]
 
 
 def get_leader(follower_id: int, movement_id: int, leader_id: int):

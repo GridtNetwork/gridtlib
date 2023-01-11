@@ -1,11 +1,11 @@
 from .helpers import (
     session_scope,
-    extend_movement_json,
     load_user,
     load_movement,
+    GridtExceptions
 )
 from gridt.models import Movement
-from gridt.exc import MovementNotFoundError
+from gridt.controllers import subscription as Subscription
 
 
 def create_movement(
@@ -66,7 +66,28 @@ def movement_exists(movement_id):
     with session_scope() as session:
         try:
             load_movement(movement_id, session)
-        except MovementNotFoundError:
+        except GridtExceptions.MovementNotFoundError:
             return False
         return True
 
+
+def extend_movement_json(movement, user, session) -> dict:
+    """
+    This function extends the json of a movement with information about user relations to the movement such as subscriptions and signals.
+
+    Args:
+        movement (Movement): The movement itself.
+        user (User): The user to retrieve the information for.
+        session (Session): The session.
+
+    Returns:
+        dict: extended movement JSON as python dict
+    """
+    movement_json = movement.to_json()
+    movement_json["subscribed"] = False
+    
+    if Subscription.is_subscribed(user.id, movement.id, session):
+        movement_json["subscribed"] = True
+        Subscription.add_json_subscription_details(movement_json, movement, user, session)
+
+    return movement_json

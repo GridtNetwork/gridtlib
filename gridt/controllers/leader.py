@@ -8,7 +8,7 @@ from gridt.controllers import subscription as Subscription
 import random
 
 from sqlalchemy.orm.query import Query
-from sqlalchemy import not_
+from sqlalchemy import not_, desc
 from sqlalchemy.orm.session import Session
 
 
@@ -84,13 +84,25 @@ def remove_all_followers(leader_id: int, movement_id: int) -> None:
                 session.add(new_mua)
 
 
+def get_last_signal(
+    leader_id: int, movement_id: int, session: Session
+) -> Signal:
+    """Find the last signal the leader has sent to the movement."""
+    return (
+        session.query(Signal)
+        .filter_by(leader_id=leader_id, movement_id=movement_id)
+        .order_by(desc("time_stamp"))
+        .first()
+    )
+
+
 def send_signal(leader_id: int, movement_id: int, message: str = None):
     """Send signal as a leader in a movement, optionally with a message."""
     with session_scope() as session:
         leader = load_user(leader_id, session)
         movement = load_movement(movement_id, session)
 
-        assert Subscription.is_subscribed(leader_id, movement_id)
+        assert Subscription.is_subscribed(leader_id, movement_id, session)
 
         signal = Signal(leader, movement, message)
         session.add(signal)

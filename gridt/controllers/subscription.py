@@ -4,7 +4,6 @@ from .helpers import (
     session_scope,
     load_movement,
     load_user,
-    extend_movement_json,
     GridtExceptions
 )
 
@@ -39,7 +38,7 @@ def _get_subscription(user_id: int, movement_id: int, session: Session) -> Query
     return subscriptions.one()
 
 
-def is_subscribed(user_id: int, movement_id: int) -> bool:
+def is_subscribed(user_id: int, movement_id: int, session: Session) -> bool:
     """
     Checks if a user is subscribled to a movement
 
@@ -50,11 +49,10 @@ def is_subscribed(user_id: int, movement_id: int) -> bool:
     Returns:
         bool: True if the movement contains the user. otherwise, false
     """
-    with session_scope() as session:
-        try: 
-            _get_subscription(user_id, movement_id, session)
-        except GridtExceptions.SubscriptionNotFoundError:
-            return False
+    try: 
+        _get_subscription(user_id, movement_id, session)
+    except GridtExceptions.SubscriptionNotFoundError:
+        return False
 
     return True
 
@@ -149,7 +147,32 @@ def get_subscriptions(user_id: int) -> list:
             )
         )
         return [
-            extend_movement_json(subscription.movement, user, session)
+            subscription.movement.to_json()
             for subscription in user_subscriptions
         ]
 
+
+def add_json_subscription_details(json, movement, user, session) -> None:
+    """
+    This function appends subscription details to a dictionary
+
+    Args:
+        json (dict): The json to append with the subscription details.
+        movement (Movement): The movement the user is subscribed to.
+        user (User): The user which is subscribed.
+        session (Session): The session to use.
+    """
+    last_signal = Leader.get_last_signal(user.id, movement.id, session)
+    json["last_signal_sent"] = (
+        last_signal.to_json() if last_signal else None
+    )
+
+    json["leaders"] = []
+    for leader in Follower.get_leaders(user, movement, session):
+        leader_json = leader.to_json()
+
+        last_leader_signal = Leader.get_last_signal(leader.id, movement.id, session)
+        if last_leader_signal:
+            leader_json.update(last_signal=last_leader_signal.to_json())
+
+        json["leaders"].append(leader_json)

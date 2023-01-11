@@ -1,6 +1,6 @@
 from gridt.tests.basetest import BaseTest
 from gridt.models import MovementUserAssociation as MUA, Signal, User, Movement
-from gridt.controllers.leader import send_signal, add_initial_followers, remove_all_followers, possible_leaders
+from gridt.controllers.leader import send_signal, add_initial_followers, remove_all_followers, possible_leaders, get_last_signal
 from freezegun import freeze_time
 from datetime import datetime
 
@@ -281,3 +281,54 @@ class LeaderControllersTest(BaseTest):
         self.session.add_all([user1, movement1])
         signal = self.session.query(Signal).get(1)
         self.assertIsNotNone(signal)
+
+
+class FindSignalTest(BaseTest):
+    def test_find_signal(self):
+        user1 = self.create_user()
+        user2 = self.create_user()
+        movement1 = self.create_movement()
+        movement2 = self.create_movement()
+        self.create_subscription(movement=movement1, user=user1)
+        self.create_subscription(movement=movement1, user=user2)
+        self.create_subscription(movement=movement2, user=user1)
+        self.create_subscription(movement=movement2, user=user2)
+        assoc1 = MUA(movement1, user1)
+        assoc2 = MUA(movement1, user2)
+        assoc3 = MUA(movement2, user1)
+        assoc4 = MUA(movement2, user2)
+        self.session.add_all(
+            [
+                user1,
+                user2,
+                movement1,
+                movement2,
+                assoc1,
+                assoc2,
+                assoc3,
+                assoc4,
+            ]
+        )
+        self.session.commit()
+        u1_id = user1.id
+        u2_id = user2.id
+        m1_id = movement1.id
+        m2_id = movement2.id
+
+        dates = [datetime(1996, 3, day) for day in range(15, 30)]
+        with freeze_time(dates[0]):
+            send_signal(u1_id, m1_id)
+        with freeze_time(dates[1]):
+            send_signal(u1_id, m2_id)
+        with freeze_time(dates[2]):
+            send_signal(u1_id, m1_id)
+        with freeze_time(dates[3]):
+            send_signal(u2_id, m2_id)
+        with freeze_time(dates[4]):
+            send_signal(u2_id, m1_id)
+        with freeze_time(dates[5]):
+            send_signal(u2_id, m1_id)
+
+        self.session.add_all([user1, movement1])
+        signal = get_last_signal(u1_id, m1_id, self.session)
+        self.assertEqual(signal.time_stamp, dates[2])

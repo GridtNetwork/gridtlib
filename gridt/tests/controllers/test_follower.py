@@ -1,9 +1,8 @@
 from freezegun import freeze_time
 from unittest.mock import patch
 from gridt.tests.basetest import BaseTest
-from gridt.controllers.helpers import leaders
 from gridt.models import User, Movement, MovementUserAssociation as MUA
-from gridt.controllers.follower import swap_leader, get_leader, add_initial_leaders, remove_all_leaders, possible_followers
+from gridt.controllers.follower import swap_leader, get_leader, add_initial_leaders, remove_all_leaders, possible_followers, get_leaders
 from gridt.controllers.leader import send_signal
 from datetime import datetime
 
@@ -419,7 +418,7 @@ class SwapTest(BaseTest):
         )
         self.session.add_all([user1, user2, user3, movement])
         self.session.add_all([user4, user5, assoc1, assoc2, assoc3, assoc4])
-        self.assertEqual(len(leaders(user2, movement, self.session)), 1)
+        self.assertEqual(len(get_leaders(user2, movement, self.session)), 1)
 
     def test_swap_leader_complicated(self):
         """
@@ -477,3 +476,61 @@ class SwapTest(BaseTest):
 
         self.session.add_all([user1, movement2, user5])
         self.assertIsNone(swap_leader(user1.id, movement2.id, user5.id))
+
+
+class TestGetLeaders(BaseTest):
+    def test_get_leaders(self):
+        """
+        movement1:
+            3 <- 1 -> 2 -> 4
+        """
+        user1 = User("user1", "test1@test.com", "test")
+        user2 = User("user2", "test2@test.com", "test")
+        user3 = User("user3", "test3@test.com", "test")
+        user4 = User("user4", "test4@test.com", "test")
+
+        movement = Movement("movement1", "daily")
+
+        assoc1 = MUA(movement, user1, user2)
+        assoc2 = MUA(movement, user1, user3)
+        assoc3 = MUA(movement, user2, user4)
+
+        self.session.add_all([user1, user2, user3, assoc1, assoc2, assoc3])
+        self.session.commit()
+
+        self.assertEqual(len(get_leaders(user1, movement, self.session)), 2)
+        self.assertEqual(
+            set(get_leaders(user1, movement, self.session)),
+            set([user2, user3]),
+        )
+
+    def test_get_leaders_removed(self):
+        """
+        movement1:
+            3 <- 1 -> 2
+                 |
+                 v
+                 4
+        """
+        user1 = User("user1", "test1@test.com", "test")
+        user2 = User("user2", "test2@test.com", "test")
+        user3 = User("user3", "test3@test.com", "test")
+        user4 = User("user4", "test4@test.com", "test")
+
+        movement = Movement("movement1", "daily")
+
+        assoc1 = MUA(movement, user1, user2)
+        assoc2 = MUA(movement, user1, user3)
+        assoc3 = MUA(movement, user1, user4)
+        assoc3.destroy()
+
+        self.session.add_all(
+            [user1, user2, user3, user4, assoc1, assoc2, assoc3]
+        )
+        self.session.commit()
+
+        self.assertEqual(len(get_leaders(user1, movement, self.session)), 2)
+        self.assertEqual(
+            set(get_leaders(movement, user1, self.session)),
+            set([user2, user3]),
+        )
