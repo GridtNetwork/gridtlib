@@ -1,5 +1,4 @@
 from gridt.models import Subscription
-from gridt.controllers.creation import on_creation, on_remove_creation
 import gridt.exc as E 
 from .helpers import (
     session_scope,
@@ -110,10 +109,6 @@ def new_subscription(user_id: int, movement_id: int) -> dict:
     _notify_subsciption_listeners(user_id, movement_id)
 
     return subscription_json
-
-
-# Add a listener to when a new movement is created the leader should be subscribed
-on_creation(new_subscription)
 
 
 # set of events listening to the unsubscription of a user to a movement

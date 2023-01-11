@@ -5,13 +5,7 @@ from gridt.controllers.creation import (
     is_creator,
     new_movement_by_user,
     _new_creation,
-    on_creation,
-    _notify_creation_listeners,
-    _on_create_events,
-    remove_creation,
-    on_remove_creation,
-    _notify_remove_creation_listeners,
-    _on_remove_creation_events
+    remove_creation
 )
 import gridt.exc as E
 from gridt.models.creation import Creation
@@ -64,34 +58,6 @@ class CreationControllerTest(BaseTest):
         self.assertFalse(is_creator(user_3_id, movement_1_id))
         self.assertFalse(is_creator(user_3_id, movement_2_id))
 
-    def test_on_creation(self):
-        def dummy_func():
-            pass
-        on_creation(dummy_func)
-        self.assertIn(dummy_func, _on_create_events)
-        _on_create_events.remove(dummy_func)
-    
-    def test_notify_creation_listeners(self):
-        # Remove all the events in the event listener
-        temp = _on_create_events.copy()
-        for event in temp:
-            _on_create_events.remove(event)
-
-        def dummy_func(x, y):
-            dummy_func.has_been_called = True
-            assert(x == 3)
-            assert(y == 7)
-
-        dummy_func.has_been_called = False
-        _on_create_events.add(dummy_func)
-        _notify_creation_listeners(3, 7)
-        self.assertTrue(dummy_func.has_been_called)
-
-        # Restore event listener to want it was previously
-        for event in temp:
-            _on_create_events.add(event)
-        _on_create_events.remove(dummy_func)
-
     def test_new_movement_by_user(self):
         user = self.create_user()
         m_name = "Test Movement"
@@ -131,35 +97,6 @@ class CreationControllerTest(BaseTest):
         self.assertDictEqual(assert_json_user, json_creation['user'])
         self.assertDictEqual(assert_json_movement, json_creation['movement'])
         self.assertTrue(json_creation['created'])
-
-    def test_on_remove_creation(self):
-        def dummy_func1():
-            pass
-        def dummy_func2():
-            pass
-        on_remove_creation(dummy_func1)
-        self.assertIn(dummy_func1, _on_remove_creation_events)
-        self.assertNotIn(dummy_func2, _on_remove_creation_events)
-        _on_remove_creation_events.remove(dummy_func1)
-
-    def test_notify_remove_creation_listeners(self):
-        # Remove all the events in the event listener
-        temp = _on_remove_creation_events.copy()
-        for event in temp:
-            _on_remove_creation_events.remove(event)
-
-        def dummy_func(x, y):
-            dummy_func.has_been_called = True
-            assert(x == 123)
-            assert(y == 987)
-
-        _on_remove_creation_events.add(dummy_func)
-        _notify_remove_creation_listeners(123, 987)
-
-        # Restore event listener to want it was previously
-        for event in temp:
-            _on_remove_creation_events.add(event)
-        _on_remove_creation_events.remove(dummy_func)
 
     def test_remove_creation(self):
         movement = self.create_movement()
