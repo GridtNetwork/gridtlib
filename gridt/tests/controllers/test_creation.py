@@ -4,7 +4,6 @@ from gridt.controllers.creation import (
     _get_creation,
     is_creator,
     new_movement_by_user,
-    _new_creation,
     remove_creation
 )
 import gridt.exc as E
@@ -81,22 +80,6 @@ class CreationControllerTest(BaseTest):
         self.assertEqual(json['movement']['interval'], m_interval)
         self.assertEqual(json['movement']['short_description'], m_short)
         self.assertEqual(json['movement']['description'], m_description)
-
-    def test_new_creation(self):
-        user = self.create_user()
-        movement = self.create_movement()
-
-        self.session.commit()
-
-        user_id = user.id
-        movement_id = movement.id
-        assert_json_user = user.to_json()
-        assert_json_movement = movement.to_json()
-
-        json_creation = _new_creation(user_id, movement_id)
-        self.assertDictEqual(assert_json_user, json_creation['user'])
-        self.assertDictEqual(assert_json_movement, json_creation['movement'])
-        self.assertTrue(json_creation['created'])
 
     def test_remove_creation(self):
         movement = self.create_movement()

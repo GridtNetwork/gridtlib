@@ -8,6 +8,33 @@ from gridt.models import Movement
 from gridt.exc import MovementNotFoundError
 
 
+def create_movement(
+    name: str,
+    interval: str,
+    short_description: str = None,
+    description: str = None,
+) -> dict:
+    """
+    Creates a new movement.
+
+    Args:
+        name (str): The name of the movement
+        interval (str): The signal interval the new movement should have.
+        short_description (str, optional): Short summary of the new movement. Defaults to None.
+        description (str, optional): Opitonal more in depth description of the new movment. Defaults to None.
+
+    Returns:
+        dict: json representation of the new movement
+    """
+    with session_scope() as session:
+        movement = Movement(name, interval, short_description, description)
+        session.add(movement)
+        session.commit()
+        movement_json = movement.to_json()
+    
+    return movement_json
+
+
 def get_all_movements(user_id):
     """Get all movements."""
     with session_scope() as session:

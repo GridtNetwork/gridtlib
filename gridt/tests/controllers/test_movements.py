@@ -5,10 +5,31 @@ from gridt.tests.basetest import BaseTest
 from gridt.models import Movement, Subscription, MovementUserAssociation as MUA
 
 from gridt.controllers.leader import send_signal
-from gridt.controllers.movements import get_movement
+from gridt.controllers.movements import get_movement, create_movement
 
 
 class MovementControllerUnitTests(BaseTest):
+
+
+    def test_create_movement(self):
+        json_creation = create_movement(
+            "movement1",
+            "daily",
+            short_description="Hi",
+            description="A long description"
+        )
+
+        self.session.commit()
+
+        expected = {
+            "id": 1,
+            "name": "movement1",
+            "short_description": "Hi",
+            "description": "A long description",
+            "interval": "daily",
+        }
+
+        self.assertDictEqual(expected, json_creation)
     
     def test_get_movement(self):
         movement = Movement(

@@ -1,9 +1,8 @@
 from contextlib import contextmanager
 from sqlalchemy import not_, desc
-from sqlalchemy.orm.query import Query
 from gridt.db import Session
 from gridt.models import User, MovementUserAssociation, Movement, Signal, Subscription
-from gridt.exc import UserNotFoundError, MovementNotFoundError
+from gridt import exc as GridtExceptions
 
 
 @contextmanager
@@ -94,7 +93,7 @@ def load_user(user_id: int, session: Session) -> User:
     """Load a user from the database."""
     user = session.query(User).get(user_id)
     if not user:
-        raise UserNotFoundError(f"No ID '{user_id}' not found.")
+        raise GridtExceptions.UserNotFoundError(f"No ID '{user_id}' not found.")
     return user
 
 
@@ -102,5 +101,5 @@ def load_movement(movement_id: int, session: Session) -> Movement:
     """Load a movement from the database."""
     movement = session.query(Movement).get(movement_id)
     if not movement:
-        raise MovementNotFoundError(f"No ID '{movement_id}' not found.")
+        raise GridtExceptions.MovementNotFoundError(f"No ID '{movement_id}' not found.")
     return movement

@@ -1,11 +1,11 @@
 from gridt.models import Subscription
 from gridt.controllers import follower as Follower, leader as Leader
-import gridt.exc as E 
 from .helpers import (
     session_scope,
     load_movement,
     load_user,
     extend_movement_json,
+    GridtExceptions
 )
 
 from sqlalchemy.orm.query import Query
@@ -34,7 +34,7 @@ def _get_subscription(user_id: int, movement_id: int, session: Session) -> Query
     )
 
     if not subscriptions.count():
-        raise E.SubscriptionNotFoundError(f"User '{user_id}' is not subscribed to Movement '{movement_id}'. Or one or both do not exist")
+        raise GridtExceptions.SubscriptionNotFoundError(f"User '{user_id}' is not subscribed to Movement '{movement_id}'. Or one or both do not exist")
     
     return subscriptions.one()
 
@@ -53,7 +53,7 @@ def is_subscribed(user_id: int, movement_id: int) -> bool:
     with session_scope() as session:
         try: 
             _get_subscription(user_id, movement_id, session)
-        except E.SubscriptionNotFoundError:
+        except GridtExceptions.SubscriptionNotFoundError:
             return False
 
     return True
