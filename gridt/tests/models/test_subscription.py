@@ -39,7 +39,7 @@ class UnitTestSubscription(BaseTest):
             subscription.unsubscribe()
 
         self.assertEqual(subscription.time_removed, datetime(2022,12,27,1,54,00))
-        self.assertTrue(subscription.is_ended())
+        self.assertTrue(subscription.has_ended())
 
 
     def test_repr(self):

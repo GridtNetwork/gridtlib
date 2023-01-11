@@ -37,7 +37,7 @@ class UnitTestCreation(BaseTest):
             creation.end()
 
         self.assertEqual(creation.time_removed, datetime(2022,12,27,3,36,00))
-        self.assertTrue(creation.is_ended())
+        self.assertTrue(creation.has_ended())
 
 
     def test_repr(self):
