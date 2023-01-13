@@ -12,7 +12,7 @@ from .helpers import (
 )
 from gridt.controllers.subscription import on_subscription, on_unsubscription, get_subscribers
 from gridt.controllers import leader as Leader
-from gridt.models import User, MovementToMovementLink, Signal, Movement
+from gridt.models import User, UserToUserLink, Signal, Movement
 
 # Move variable to config
 MESSAGE_HISTORY_MAX_DEPTH = 3
@@ -33,14 +33,14 @@ def _add_initial_leaders(follower_id: int, movement_id: int) -> None:
         while leaders(user, movement, session).count() < 4:
             avaiable = Leader.possible_leaders(user, movement, session).all()
             if avaiable:
-                movement_to_movement_link = MovementToMovementLink(movement, user)
-                movement_to_movement_link.leader = random.choice(avaiable)
-                session.add(movement_to_movement_link)
+                user_to_user_link = UserToUserLink(movement, user)
+                user_to_user_link.leader = random.choice(avaiable)
+                session.add(user_to_user_link)
             else:
                 if leaders(user, movement, session).count() == 0:
                     # Case no leaders have been added, add None
-                    movement_to_movement_link = MovementToMovementLink(movement, user, None)
-                    session.add(movement_to_movement_link)
+                    user_to_user_link = UserToUserLink(movement, user, None)
+                    session.add(user_to_user_link)
                 break
 
 
@@ -60,32 +60,32 @@ def _remove_all_leaders(follower_id: int, movement_id: int) -> None:
     with session_scope() as session:
         movement = load_movement(movement_id, session)
 
-        follower_movement_to_movement_links_to_destroy = session.query(
-            MovementToMovementLink
+        follower_user_to_user_links_to_destroy = session.query(
+            UserToUserLink
         ).filter(
-            MovementToMovementLink.movement_id == movement_id,
-            MovementToMovementLink.destroyed.is_(None),
-            MovementToMovementLink.follower_id == follower_id,
+            UserToUserLink.movement_id == movement_id,
+            UserToUserLink.destroyed.is_(None),
+            UserToUserLink.follower_id == follower_id,
         ).all()
 
-        for movement_to_movement_link in follower_movement_to_movement_links_to_destroy:
-            movement_to_movement_link.destroy()
+        for user_to_user_link in follower_user_to_user_links_to_destroy:
+            user_to_user_link.destroy()
 
         session.commit()
 
         # For each leader removed try to find a new follower
-        for movement_to_movement_link in follower_movement_to_movement_links_to_destroy:
-            if not movement_to_movement_link.leader:
+        for user_to_user_link in follower_user_to_user_links_to_destroy:
+            if not user_to_user_link.leader:
                 continue
 
-            poss_followers = possible_followers(movement_to_movement_link.leader, movement_to_movement_link.movement, session).all()
-            # Add new MovementToMovementLinks for each former leader.
+            poss_followers = possible_followers(user_to_user_link.leader, user_to_user_link.movement, session).all()
+            # Add new UserToUserLinks for each former leader.
             if poss_followers:
                 new_follower = random.choice(poss_followers)
-                new_movement_to_movement_link = MovementToMovementLink(
-                    movement, new_follower, movement_to_movement_link.leader
+                new_user_to_user_link = UserToUserLink(
+                    movement, new_follower, user_to_user_link.leader
                 )
-                session.add(new_movement_to_movement_link)
+                session.add(new_user_to_user_link)
 
 
 # Add a listener to remove subscription event to remove all the leaders of a follower.
@@ -97,12 +97,12 @@ def get_leader(follower_id: int, movement_id: int, leader_id: int):
     with session_scope() as session:
         leader = (
             session.query(User)
-            .join(MovementToMovementLink.leader)
+            .join(UserToUserLink.leader)
             .filter(
-                MovementToMovementLink.follower_id == follower_id,
-                MovementToMovementLink.movement_id == movement_id,
-                MovementToMovementLink.leader_id == leader_id,
-                MovementToMovementLink.destroyed.is_(None),
+                UserToUserLink.follower_id == follower_id,
+                UserToUserLink.movement_id == movement_id,
+                UserToUserLink.leader_id == leader_id,
+                UserToUserLink.destroyed.is_(None),
             )
             .one()
         )
@@ -125,12 +125,12 @@ def follows_leader(follower_id: int, movement_id: int, leader_id: int):
     with session_scope() as session:
         leader = (
             session.query(User)
-            .join(MovementToMovementLink.leader)
+            .join(UserToUserLink.leader)
             .filter(
-                MovementToMovementLink.follower_id == follower_id,
-                MovementToMovementLink.movement_id == movement_id,
-                MovementToMovementLink.leader_id == leader_id,
-                MovementToMovementLink.destroyed.is_(None),
+                UserToUserLink.follower_id == follower_id,
+                UserToUserLink.movement_id == movement_id,
+                UserToUserLink.leader_id == leader_id,
+                UserToUserLink.destroyed.is_(None),
             )
             .one_or_none()
         )
@@ -159,21 +159,21 @@ def swap_leader(follower_id: int, movement_id: int, leader_id: int) -> dict:
         if not poss_leaders:
             return None
 
-        movement_to_movement_link = (
-            session.query(MovementToMovementLink)
+        user_to_user_link = (
+            session.query(UserToUserLink)
             .filter(
-                MovementToMovementLink.follower_id == follower.id,
-                MovementToMovementLink.leader_id == leader.id,
-                MovementToMovementLink.movement_id == movement.id,
-                MovementToMovementLink.destroyed.is_(None),
+                UserToUserLink.follower_id == follower.id,
+                UserToUserLink.leader_id == leader.id,
+                UserToUserLink.movement_id == movement.id,
+                UserToUserLink.destroyed.is_(None),
             )
             .one()
         )
 
-        movement_to_movement_link.destroy()
+        user_to_user_link.destroy()
 
         new_leader = random.choice(poss_leaders)
-        new_assoc = MovementToMovementLink(movement, follower, new_leader)
+        new_assoc = UserToUserLink(movement, follower, new_leader)
         session.add(new_assoc)
 
         leader_dict = new_leader.to_json()
@@ -207,20 +207,20 @@ def possible_followers(
     :todo we should probably be using subscriptions here this is all very hacky
     """    
 
-    follower_ids = session.query(MovementToMovementLink.follower_id).filter(
-        MovementToMovementLink.movement_id == movement.id, MovementToMovementLink.leader_id == user.id, MovementToMovementLink.destroyed.is_(None)
+    follower_ids = session.query(UserToUserLink.follower_id).filter(
+        UserToUserLink.movement_id == movement.id, UserToUserLink.leader_id == user.id, UserToUserLink.destroyed.is_(None)
     )
 
-    valid_movement_to_movement_links = (
+    valid_user_to_user_links = (
             session.query(
-                MovementToMovementLink,
-                func.count().label("movement_to_movement_link_count"),
+                UserToUserLink,
+                func.count().label("user_to_user_link_count"),
             )
             .filter(
-                MovementToMovementLink.movement_id == movement.id,
-                MovementToMovementLink.destroyed.is_(None),
+                UserToUserLink.movement_id == movement.id,
+                UserToUserLink.destroyed.is_(None),
             )
-            .group_by(MovementToMovementLink.follower_id)
+            .group_by(UserToUserLink.follower_id)
             .subquery()
         )
 
@@ -230,10 +230,10 @@ def possible_followers(
         .query(User)
         .join(User.follower_associations)
         .filter(
-            valid_movement_to_movement_links.c.follower_id == User.id,
-            valid_movement_to_movement_links.c.movement_to_movement_link_count < 4,
+            valid_user_to_user_links.c.follower_id == User.id,
+            valid_user_to_user_links.c.user_to_user_link_count < 4,
         )
-        .group_by(MovementToMovementLink.follower_id).filter(
+        .group_by(UserToUserLink.follower_id).filter(
             not_(User.id == user.id), not_(User.id.in_(follower_ids))
         )
     )

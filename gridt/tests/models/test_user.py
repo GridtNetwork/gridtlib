@@ -2,7 +2,7 @@ from unittest import skip
 import jwt
 from freezegun import freeze_time
 from gridt.tests.basetest import BaseTest
-from gridt.models import User, MovementToMovementLink, Movement
+from gridt.models import User, UserToUserLink, Movement
 
 
 class UnitTestUser(BaseTest):

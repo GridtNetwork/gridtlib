@@ -8,7 +8,7 @@ from passlib.apps import custom_app_context as pwd_context
 import hashlib
 
 from gridt.db import Base
-from .movement_to_movement_link import MovementToMovementLink
+from .user_to_user_link import UserToUserLink
 
 
 class User(Base):
@@ -40,14 +40,14 @@ class User(Base):
     bio = Column(UnicodeText)
 
     follower_associations = relationship(
-        "MovementToMovementLink",
-        foreign_keys="MovementToMovementLink.follower_id",
+        "UserToUserLink",
+        foreign_keys="UserToUserLink.follower_id",
     )
 
     movements = association_proxy(
         "follower_associations",
         "movement",
-        creator=lambda movement: MovementToMovementLink(movement=movement),
+        creator=lambda movement: UserToUserLink(movement=movement),
     )
 
     def __init__(self, username, email, password, role="user", bio=""):

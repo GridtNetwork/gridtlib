@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from sqlalchemy import not_, desc
 from sqlalchemy.orm.query import Query
 from gridt.db import Session
-from gridt.models import User, MovementToMovementLink, Movement, Signal, Subscription
+from gridt.models import User, UserToUserLink, Movement, Signal, Subscription
 from gridt.exc import UserNotFoundError, MovementNotFoundError
 
 
@@ -36,12 +36,12 @@ def leaders(user: User, movement: Movement, session: Session) -> Query:
     """
     return (
         session.query(User)
-        .join(MovementToMovementLink.leader)
+        .join(UserToUserLink.leader)
         .filter(
-            MovementToMovementLink.follower_id == user.id,
-            MovementToMovementLink.movement_id == movement.id,
-            not_(MovementToMovementLink.leader_id.is_(None)),
-            MovementToMovementLink.destroyed.is_(None),
+            UserToUserLink.follower_id == user.id,
+            UserToUserLink.movement_id == movement.id,
+            not_(UserToUserLink.leader_id.is_(None)),
+            UserToUserLink.destroyed.is_(None),
         )
     )
 
