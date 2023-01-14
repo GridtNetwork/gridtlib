@@ -1,5 +1,6 @@
 from gridt.tests.basetest import BaseTest
 from gridt.models import MovementUserAssociation as MUA, Signal, User, Movement
+from gridt.models import Subscription as SUB
 from gridt.controllers.leader import send_signal, add_initial_followers, remove_all_followers, possible_leaders, get_last_signal
 from freezegun import freeze_time
 from datetime import datetime
@@ -18,18 +19,23 @@ class OnSubscriptionEventsLeaderTests(BaseTest):
         self.session.add_all(
             [   
                 # Movement A
-                MUA(mA, u1, u2), MUA(mA, u1, u3),
-                MUA(mA, u2, u3), MUA(mA, u2, u4),
-                MUA(mA, u3, u4), MUA(mA, u3, u5),
-                MUA(mA, u4, u5), MUA(mA, u3, u1),
-                MUA(mA, u5, u1), MUA(mA, u5, u2),
+                MUA(mA, u1, u2),
+                MUA(mA, u1, u3), MUA(mA, u2, u3),
+                MUA(mA, u2, u4), MUA(mA, u3, u4),
+                MUA(mA, u3, u5), MUA(mA, u4, u5),
+                MUA(mA, u3, u1), MUA(mA, u5, u1),
+                MUA(mA, u5, u2),
+                SUB(u1, mA), SUB(u2, mA),
+                SUB(u3, mA), SUB(u4, mA),
+                SUB(u5, mA),
 
                 # Movement B
                 MUA(mB, u1, u2), MUA(mB, u1, u3), MUA(mB, u1, u4), MUA(mB, u1, u5),
                 MUA(mB, u2, u3), MUA(mB, u2, u4), MUA(mB, u2, u5), MUA(mB, u2, u1),
                 MUA(mB, u3, u4), MUA(mB, u3, u5), MUA(mB, u3, u1), MUA(mB, u3, u2),
                 MUA(mB, u4, u5), MUA(mB, u4, u1), MUA(mB, u4, u2), MUA(mB, u4, u3),
-                MUA(mB, u5, u1), MUA(mB, u5, u2), MUA(mB, u5, u3), MUA(mB, u5, u4)
+                MUA(mB, u5, u1), MUA(mB, u5, u2), MUA(mB, u5, u3), MUA(mB, u5, u4),
+                SUB(u1, mB), SUB(u2, mB), SUB(u3, mB), SUB(u4, mB), SUB(u5, mB)
             ]
         )
         self.session.commit()
@@ -49,7 +55,7 @@ class OnSubscriptionEventsLeaderTests(BaseTest):
             MUA.follower_id.in_([u1_id, u2_id, u3_id, u4_id, u5_id]),
             MUA.movement_id == mA_id,
             MUA.destroyed.is_(None),
-        ).count(), 5)  # This is 5 because we priorities all users having 4 leaders
+        ).count(), 5)  # This is 5 because we prioritize all users having 4 leaders
 
         # Test 5 users in Movement A (fully connected)
         add_initial_followers(leader_id, mB_id)

@@ -1,4 +1,6 @@
 import random
+from operator import and_
+
 from sqlalchemy import desc
 from sqlalchemy.orm.query import Query
 from sqlalchemy import not_, func
@@ -7,11 +9,11 @@ from sqlalchemy.orm.session import Session
 from .helpers import (
     session_scope,
     load_movement,
-    load_user, 
+    load_user,
 )
 
 from gridt.controllers import leader as Leader
-from gridt.models import User, MovementUserAssociation, Signal, Movement
+from gridt.models import User, MovementUserAssociation, Signal, Movement, Subscription
 
 # Move variable to config
 MESSAGE_HISTORY_MAX_DEPTH = 3
@@ -202,8 +204,8 @@ def swap_leader(follower_id: int, movement_id: int, leader_id: int) -> dict:
 
 
 def possible_followers(
-    user: User, movement: Movement, session: Session
-) -> Query:
+        user: User, movement: Movement, session: Session
+) -> list:
     """
     Find the active users in this movement
     (movement.current_users) that have fewer than four leaders,
@@ -213,38 +215,24 @@ def possible_followers(
     :param movement Movement where the leaderless are queried
     :param session Session in which the query is performed
 
-    :todo we should probably be using subscriptions here this is all very hacky
-    """    
+    """
     MUA = MovementUserAssociation
+    SUB = Subscription
 
     follower_ids = session.query(MUA.follower_id).filter(
         MUA.movement_id == movement.id, MUA.leader_id == user.id, MUA.destroyed.is_(None)
     )
 
-    valid_muas = (
-            session.query(
-                MUA,
-                func.count().label("mua_count"),
-            )
-            .filter(
-                MUA.movement_id == movement.id,
-                MUA.destroyed.is_(None),
-            )
-            .group_by(MUA.follower_id)
-            .subquery()
-        )
-
-
-    available_leaderless = (
-        session
-        .query(MUA)
+    potential_available_followers = (session.query(
+        SUB,
+        func.count(MUA.follower_id))
+        .outerjoin(MUA, and_(SUB.user_id == MUA.follower_id, movement.id == MUA.movement_id))
         .filter(
-            valid_muas.c.follower_id == MUA.follower_id,
-            valid_muas.c.mua_count < 4,
-        )
-        .group_by(MUA.follower_id).filter(
-            not_(MUA.follower_id == user.id), not_(MUA.follower_id.in_(follower_ids))
-        )
-    )
+                SUB.movement_id == movement.id,
+                not_(SUB.user_id == user.id),
+                not_(SUB.user_id.in_(follower_ids)),
+                MUA.destroyed.is_(None)
+                )
+        .group_by(SUB.user_id).all())
 
-    return [mua.follower for mua in available_leaderless]
+    return [subscription.user for subscription, counts in potential_available_followers if counts < 4]

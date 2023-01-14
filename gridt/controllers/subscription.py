@@ -138,7 +138,6 @@ def get_subscriptions(user_id: int) -> list:
         list: List of all the movements in json format.
     """
     with session_scope() as session:
-        user = load_user(user_id, session)
         user_subscriptions = (
             session.query(Subscription)
             .filter(

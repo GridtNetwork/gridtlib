@@ -14,7 +14,7 @@ from sqlalchemy.orm.session import Session
 
 def add_initial_followers(leader_id: int, movement_id: int) -> None:
     """
-    This funciton adds the initial followers of a leader joining a movement
+    This function adds the initial followers of a leader joining a movement
 
     Args:
         leader_id (int): The id of the leader who just joined the movement
@@ -29,19 +29,19 @@ def add_initial_followers(leader_id: int, movement_id: int) -> None:
             mua = MovementUserAssociation(movement, new_follower, leader=user)
             session.add(mua)
 
-            # Remove any None associations the new follower may have had
-            assoc_none = (
-                session.query(MovementUserAssociation)
-                .filter(
-                    MovementUserAssociation.movement_id == movement.id,
-                    MovementUserAssociation.follower_id == new_follower.id,
-                    MovementUserAssociation.leader_id.is_(None),
-                )
-                .group_by(MovementUserAssociation.follower_id)
-                .all()
-            )
-            for a in assoc_none:
-                a.destroy()
+            # # Remove any None associations the new follower may have had
+            # assoc_none = (
+            #     session.query(MovementUserAssociation)
+            #     .filter(
+            #         MovementUserAssociation.movement_id == movement.id,
+            #         MovementUserAssociation.follower_id == new_follower.id,
+            #         MovementUserAssociation.leader_id.is_(None),
+            #     )
+            #     .group_by(MovementUserAssociation.follower_id)
+            #     .all()
+            # )
+            # for a in assoc_none:
+            #     a.destroy()
 
 
 def remove_all_followers(leader_id: int, movement_id: int) -> None:
