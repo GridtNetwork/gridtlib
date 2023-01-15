@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, DateTime, ForeignKey, String
 from sqlalchemy.orm import relationship
 
 from gridt.db import Base
+from gridt.models import User, Movement
 
 class MovementUserRelation(Base):
     """
@@ -27,13 +28,13 @@ class MovementUserRelation(Base):
 
     # One way relation to the user through user_id column
     user_id = Column(Integer, ForeignKey('users.id'))
-    user = relationship('User', foreign_keys=[user_id])
+    user = relationship(User, foreign_keys=[user_id])
 
     # One way relation to the movement through movement_id column
     movement_id = Column(Integer, ForeignKey('movements.id'))
-    movement = relationship('Movement', foreign_keys=[movement_id])
+    movement = relationship(Movement, foreign_keys=[movement_id])
 
-    def __init__(self, user=None, movement=None):
+    def __init__(self, user:User, movement:Movement):
         """
         Initalization method for the relation between user and movement.
 
@@ -45,7 +46,7 @@ class MovementUserRelation(Base):
         self.movement = movement
         self.time_added = datetime.now()
 
-    def is_ended(self):
+    def has_ended(self):
         """
         Check if the relation has ended
 

@@ -1,17 +1,15 @@
 from gridt.models import Subscription
-from gridt.controllers.creation import on_creation, on_remove_creation
-import gridt.exc as E 
+from gridt.controllers import follower as Follower, leader as Leader
 from .helpers import (
     session_scope,
     load_movement,
     load_user,
-    extend_movement_json,
+    GridtExceptions
 )
 
 from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import Session
 
-import types
 
 def _get_subscription(user_id: int, movement_id: int, session: Session) -> Query:
     """
@@ -35,12 +33,12 @@ def _get_subscription(user_id: int, movement_id: int, session: Session) -> Query
     )
 
     if not subscriptions.count():
-        raise E.SubscriptionNotFoundError(f"User '{user_id}' is not subscribed to Movement '{movement_id}'. Or one or both do not exist")
+        raise GridtExceptions.SubscriptionNotFoundError(f"User '{user_id}' is not subscribed to Movement '{movement_id}'. Or one or both do not exist")
     
     return subscriptions.one()
 
 
-def is_subscribed(user_id: int, movement_id: int) -> bool:
+def is_subscribed(user_id: int, movement_id: int, session: Session) -> bool:
     """
     Checks if a user is subscribled to a movement
 
@@ -51,40 +49,12 @@ def is_subscribed(user_id: int, movement_id: int) -> bool:
     Returns:
         bool: True if the movement contains the user. otherwise, false
     """
-    with session_scope() as session:
-        try: 
-            _get_subscription(user_id, movement_id, session)
-        except E.SubscriptionNotFoundError:
-            return False
+    try: 
+        _get_subscription(user_id, movement_id, session)
+    except GridtExceptions.SubscriptionNotFoundError:
+        return False
 
     return True
-
-
-# set of events to listening to the subscription of a user to a movement
-_on_subscription_events = set()
-
-
-def on_subscription(event_func: types.FunctionType) -> None:
-    """
-    This function adds an eventlistener to the function new_subscription
-
-    Args:
-        event_func (types.FunctionType): A function that should be called whenever a new subscription is made.
-        The function should be in the type (user_id: int, movement_id: int) -> None.
-    """
-    _on_subscription_events.add(event_func)
-
-
-def _notify_subsciption_listeners(user_id: int, movement_id: int) -> None:
-    """
-    This helper function calls all event functions for each listener.
-
-    Args:
-        user_id (int): The id of the user who just subscribed.
-        movement_id (int): The id of the movement the user subscribed to.
-    """
-    for event in _on_subscription_events:
-        event(user_id, movement_id)
 
 
 def new_subscription(user_id: int, movement_id: int) -> dict:
@@ -106,41 +76,10 @@ def new_subscription(user_id: int, movement_id: int) -> dict:
         session.add(subscription)
         subscription_json = subscription.to_json()
 
-    # Emit message to all listeners
-    _notify_subsciption_listeners(user_id, movement_id)
+    Follower.add_initial_leaders(user_id, movement_id)
+    Leader.add_initial_followers(user_id, movement_id)
 
     return subscription_json
-
-
-# Add a listener to when a new movement is created the leader should be subscribed
-on_creation(new_subscription)
-
-
-# set of events listening to the unsubscription of a user to a movement
-_on_unsubscription_events = set()
-
-
-def on_unsubscription(event_func: types.FunctionType) -> None:
-    """
-    This function adds an event listener to the function remove subscription
-
-    Args:
-        event_func (types.FunctionType): A function that should be called whenever a subscriptions is ended.
-        The function should be in the type (user_id: int, movement_id: int) -> None
-    """
-    _on_unsubscription_events.add(event_func)
-
-
-def _notify_remove_subscription_listeners(user_id: int, movement_id: int):
-    """
-    This helper function calls all notify functions for each listener.
-
-    Args:
-        user_id (int): The id of the user who subscription to the movement was removed.
-        movement_id (int): The id of the movement who relation to the user was removed.
-    """
-    for event in _on_unsubscription_events:
-        event(user_id, movement_id)
 
 
 def remove_subscription(user_id: int, movement_id: int) -> dict:
@@ -161,8 +100,8 @@ def remove_subscription(user_id: int, movement_id: int) -> dict:
         session.add(subscription)
         removed_json = subscription.to_json()
 
-    # Emit event to listeners
-    _notify_remove_subscription_listeners(user_id, movement_id)
+    Follower.remove_all_leaders(user_id, movement_id)
+    Leader.remove_all_followers(user_id, movement_id)
 
     return removed_json
 
@@ -199,7 +138,6 @@ def get_subscriptions(user_id: int) -> list:
         list: List of all the movements in json format.
     """
     with session_scope() as session:
-        user = load_user(user_id, session)
         user_subscriptions = (
             session.query(Subscription)
             .filter(
@@ -208,7 +146,32 @@ def get_subscriptions(user_id: int) -> list:
             )
         )
         return [
-            extend_movement_json(subscription.movement, user, session)
+            subscription.movement.to_json()
             for subscription in user_subscriptions
         ]
 
+
+def add_json_subscription_details(json, movement, user, session) -> None:
+    """
+    This function appends subscription details to a dictionary
+
+    Args:
+        json (dict): The json to append with the subscription details.
+        movement (Movement): The movement the user is subscribed to.
+        user (User): The user which is subscribed.
+        session (Session): The session to use.
+    """
+    last_signal = Leader.get_last_signal(user.id, movement.id, session)
+    json["last_signal_sent"] = (
+        last_signal.to_json() if last_signal else None
+    )
+
+    json["leaders"] = []
+    for leader in Follower.get_leaders(user, movement, session):
+        leader_json = leader.to_json()
+
+        last_leader_signal = Leader.get_last_signal(leader.id, movement.id, session)
+        if last_leader_signal:
+            leader_json.update(last_signal=last_leader_signal.to_json())
+
+        json["leaders"].append(leader_json)

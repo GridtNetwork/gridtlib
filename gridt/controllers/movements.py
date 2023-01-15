@@ -1,11 +1,38 @@
 from .helpers import (
     session_scope,
-    extend_movement_json,
     load_user,
     load_movement,
+    GridtExceptions
 )
 from gridt.models import Movement
-from gridt.exc import MovementNotFoundError
+from gridt.controllers import subscription as Subscription
+
+
+def create_movement(
+    name: str,
+    interval: str,
+    short_description: str = None,
+    description: str = None,
+) -> dict:
+    """
+    Creates a new movement.
+
+    Args:
+        name (str): The name of the movement
+        interval (str): The signal interval the new movement should have.
+        short_description (str, optional): Short summary of the new movement. Defaults to None.
+        description (str, optional): Opitonal more in depth description of the new movment. Defaults to None.
+
+    Returns:
+        dict: json representation of the new movement
+    """
+    with session_scope() as session:
+        movement = Movement(name, interval, short_description, description)
+        session.add(movement)
+        session.commit()
+        movement_json = movement.to_json()
+    
+    return movement_json
 
 
 def get_all_movements(user_id):
@@ -39,7 +66,28 @@ def movement_exists(movement_id):
     with session_scope() as session:
         try:
             load_movement(movement_id, session)
-        except MovementNotFoundError:
+        except GridtExceptions.MovementNotFoundError:
             return False
         return True
 
+
+def extend_movement_json(movement, user, session) -> dict:
+    """
+    This function extends the json of a movement with information about user relations to the movement such as subscriptions and signals.
+
+    Args:
+        movement (Movement): The movement itself.
+        user (User): The user to retrieve the information for.
+        session (Session): The session.
+
+    Returns:
+        dict: extended movement JSON as python dict
+    """
+    movement_json = movement.to_json()
+    movement_json["subscribed"] = False
+    
+    if Subscription.is_subscribed(user.id, movement.id, session):
+        movement_json["subscribed"] = True
+        Subscription.add_json_subscription_details(movement_json, movement, user, session)
+
+    return movement_json
