@@ -1,7 +1,9 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
+
 from gridt.db import Base
+from gridt.models import Movement, User
 
 
 class MovementUserAssociation(Base):
@@ -29,15 +31,11 @@ class MovementUserAssociation(Base):
     created = Column(DateTime(timezone=True))
     destroyed = Column(DateTime(timezone=True))
 
-    movement = relationship("Movement", back_populates="user_associations")
-    follower = relationship(
-        "User",
-        foreign_keys=[follower_id],
-        back_populates="follower_associations",
-    )
-    leader = relationship("User", foreign_keys=[leader_id])
+    movement = relationship(Movement, foreign_keys=[movement_id])
+    follower = relationship(User, foreign_keys=[follower_id])
+    leader = relationship(User, foreign_keys=[leader_id])
 
-    def __init__(self, movement=None, follower=None, leader=None):
+    def __init__(self, movement:Movement=None, follower:User=None, leader:User=None):
         # movement=None and follower=None
         # are required for correct functioning of
         # user_associations in ./movement.py

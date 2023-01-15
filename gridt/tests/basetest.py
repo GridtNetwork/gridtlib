@@ -4,7 +4,7 @@ import lorem
 import random
 from sqlalchemy import create_engine
 from gridt.db import Session, Base
-from .models import User, Movement
+from gridt.models import User, Movement, Subscription
 
 
 class BaseTest(TestCase):
@@ -63,3 +63,9 @@ class BaseTest(TestCase):
 
         self.session.add(movement)
         return movement
+
+    def create_subscription(self, movement, user):
+        """Create a subscription between a user and a movement"""
+        subscription = Subscription(user, movement)
+        self.session.add(subscription)
+        return subscription

@@ -1,24 +1,115 @@
 import random
+from operator import and_
+
 from sqlalchemy import desc
+from sqlalchemy.orm.query import Query
+from sqlalchemy import not_, func
+from sqlalchemy.orm.session import Session
+
 from .helpers import (
     session_scope,
-    possible_leaders,
-    extend_movement_json,
     load_movement,
     load_user,
 )
-from gridt.models import User, MovementUserAssociation, Signal
+
+from gridt.controllers import leader as Leader
+from gridt.models import User, MovementUserAssociation, Signal, Movement, Subscription
 
 # Move variable to config
 MESSAGE_HISTORY_MAX_DEPTH = 3
 
 
+def add_initial_leaders(follower_id: int, movement_id: int) -> None:
+    """
+    This function adds the initial leaders for a follower when the follower first joins the movement.
+
+    Args:
+        follower_id (int): The id of the follower in the movement
+        movement_id (int): The id of the movement to get leaders from.
+    """
+    with session_scope() as session:
+        user = load_user(follower_id, session)
+        movement = load_movement(movement_id, session)
+
+        while len(get_leaders(user, movement, session)) < 4:
+            avaiable = Leader.possible_leaders(user, movement, session)
+            if avaiable:
+                mua = MovementUserAssociation(movement, user)
+                mua.leader = random.choice(avaiable)
+                session.add(mua)
+            else:
+                if not get_leaders(user, movement, session):
+                    # Case no leaders have been added, add None
+                    mua = MovementUserAssociation(movement, user, None)
+                    session.add(mua)
+                break
+
+
+def remove_all_leaders(follower_id: int, movement_id: int) -> None:
+    """
+    This function removes all leaders from a follower when the follower leaves a movement.
+    It then tries to find new followers for the leaders.
+
+    Args:
+        follower_id (int): The id of the follower in the movement.
+        movement_id (int): The id of the movement itself.
+    """
+    with session_scope() as session:
+        movement = load_movement(movement_id, session)
+
+        follower_muas_to_destroy = session.query(
+            MovementUserAssociation
+        ).filter(
+            MovementUserAssociation.movement_id == movement_id,
+            MovementUserAssociation.destroyed.is_(None),
+            MovementUserAssociation.follower_id == follower_id,
+        ).all()
+
+        for mua in follower_muas_to_destroy:
+            mua.destroy()
+
+        session.commit()
+
+        # For each leader removed try to find a new follower
+        for mua in follower_muas_to_destroy:
+            if not mua.leader:
+                continue
+
+            poss_followers = possible_followers(mua.leader, mua.movement, session)
+            # Add new MUAs for each former leader.
+            if poss_followers:
+                new_follower = random.choice(poss_followers)
+                new_mua = MovementUserAssociation(
+                    movement, new_follower, mua.leader
+                )
+                session.add(new_mua)
+
+
+def get_leaders(user: User, movement: Movement, session: Session) -> list:
+    """
+    Create a query for the leaders of a user in a movement from a session.
+
+    :param gridt.models.user.User user: User that needs new leaders.
+    :param list exclude: List of users (can be a user model or an id) to
+    exclude from search.
+    :returns: List object
+    """
+    return [ mua.leader for mua in
+        session.query(MovementUserAssociation)
+        .filter(
+            MovementUserAssociation.follower_id == user.id,
+            MovementUserAssociation.movement_id == movement.id,
+            not_(MovementUserAssociation.leader_id.is_(None)),
+            MovementUserAssociation.destroyed.is_(None)
+        )
+    ]
+
+
 def get_leader(follower_id: int, movement_id: int, leader_id: int):
     """Get a leader for a follower in movement and list his history."""
     with session_scope() as session:
-        leader = (
-            session.query(User)
-            .join(MovementUserAssociation.leader)
+        leader_link = (
+            session.query(MovementUserAssociation)
             .filter(
                 MovementUserAssociation.follower_id == follower_id,
                 MovementUserAssociation.movement_id == movement_id,
@@ -28,7 +119,7 @@ def get_leader(follower_id: int, movement_id: int, leader_id: int):
             .one()
         )
 
-        resp = leader.to_json()
+        resp = leader_link.leader.to_json()
         history = (
             session.query(Signal)
             .filter_by(leader_id=leader_id, movement_id=movement_id)
@@ -45,8 +136,7 @@ def follows_leader(follower_id: int, movement_id: int, leader_id: int):
     """Check if follower is following leader in movement."""
     with session_scope() as session:
         leader = (
-            session.query(User)
-            .join(MovementUserAssociation.leader)
+            session.query(MovementUserAssociation)
             .filter(
                 MovementUserAssociation.follower_id == follower_id,
                 MovementUserAssociation.movement_id == movement_id,
@@ -58,16 +148,6 @@ def follows_leader(follower_id: int, movement_id: int, leader_id: int):
         if leader:
             return True
         return False
-
-
-def get_subscriptions(user_id: int) -> list:
-    """Get list of movements that the user is subscribed to."""
-    with session_scope() as session:
-        user = load_user(user_id, session)
-        return [
-            extend_movement_json(movement, user, session)
-            for movement in user.current_movements
-        ]
 
 
 def swap_leader(follower_id: int, movement_id: int, leader_id: int) -> dict:
@@ -86,7 +166,7 @@ def swap_leader(follower_id: int, movement_id: int, leader_id: int) -> dict:
 
         # If there are no other possible leaders than we can't perform the
         # swap.
-        poss_leaders = possible_leaders(follower, movement, session).all()
+        poss_leaders = Leader.possible_leaders(follower, movement, session)
         if not poss_leaders:
             return None
 
@@ -121,3 +201,38 @@ def swap_leader(follower_id: int, movement_id: int, leader_id: int) -> dict:
             leader_dict["last_signal"] = time_stamp
 
         return leader_dict
+
+
+def possible_followers(
+        user: User, movement: Movement, session: Session
+) -> list:
+    """
+    Find the active users in this movement
+    (movement.current_users) that have fewer than four leaders,
+    excluding the current user or any of his followers.
+
+    :param user User that would be the possible leader
+    :param movement Movement where the leaderless are queried
+    :param session Session in which the query is performed
+
+    """
+    MUA = MovementUserAssociation
+    SUB = Subscription
+
+    follower_ids = session.query(MUA.follower_id).filter(
+        MUA.movement_id == movement.id, MUA.leader_id == user.id, MUA.destroyed.is_(None)
+    )
+
+    potential_available_followers = (session.query(
+        SUB,
+        func.count(MUA.follower_id))
+        .outerjoin(MUA, and_(SUB.user_id == MUA.follower_id, movement.id == MUA.movement_id))
+        .filter(
+                SUB.movement_id == movement.id,
+                not_(SUB.user_id == user.id),
+                not_(SUB.user_id.in_(follower_ids)),
+                MUA.destroyed.is_(None)
+                )
+        .group_by(SUB.user_id).all())
+
+    return [subscription.user for subscription, counts in potential_available_followers if counts < 4]
