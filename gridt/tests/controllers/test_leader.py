@@ -1,5 +1,5 @@
 from gridt.tests.basetest import BaseTest
-from gridt.models import MovementUserAssociation as MUA, Signal, User, Movement
+from gridt.models import UserToUserLink, Signal, User, Movement
 from gridt.models import Subscription as SUB
 from gridt.controllers.leader import send_signal, add_initial_followers, remove_all_followers, possible_leaders, get_last_signal
 from freezegun import freeze_time
@@ -19,22 +19,22 @@ class OnSubscriptionEventsLeaderTests(BaseTest):
         self.session.add_all(
             [   
                 # Movement A
-                MUA(mA, u1, u2),
-                MUA(mA, u1, u3), MUA(mA, u2, u3),
-                MUA(mA, u2, u4), MUA(mA, u3, u4),
-                MUA(mA, u3, u5), MUA(mA, u4, u5),
-                MUA(mA, u3, u1), MUA(mA, u5, u1),
-                MUA(mA, u5, u2),
+                UserToUserLink(mA, u1, u2),
+                UserToUserLink(mA, u1, u3), UserToUserLink(mA, u2, u3),
+                UserToUserLink(mA, u2, u4), UserToUserLink(mA, u3, u4),
+                UserToUserLink(mA, u3, u5), UserToUserLink(mA, u4, u5),
+                UserToUserLink(mA, u3, u1), UserToUserLink(mA, u5, u1),
+                UserToUserLink(mA, u5, u2),
                 SUB(u1, mA), SUB(u2, mA),
                 SUB(u3, mA), SUB(u4, mA),
                 SUB(u5, mA),
 
                 # Movement B
-                MUA(mB, u1, u2), MUA(mB, u1, u3), MUA(mB, u1, u4), MUA(mB, u1, u5),
-                MUA(mB, u2, u3), MUA(mB, u2, u4), MUA(mB, u2, u5), MUA(mB, u2, u1),
-                MUA(mB, u3, u4), MUA(mB, u3, u5), MUA(mB, u3, u1), MUA(mB, u3, u2),
-                MUA(mB, u4, u5), MUA(mB, u4, u1), MUA(mB, u4, u2), MUA(mB, u4, u3),
-                MUA(mB, u5, u1), MUA(mB, u5, u2), MUA(mB, u5, u3), MUA(mB, u5, u4),
+                UserToUserLink(mB, u1, u2), UserToUserLink(mB, u1, u3), UserToUserLink(mB, u1, u4), UserToUserLink(mB, u1, u5),
+                UserToUserLink(mB, u2, u3), UserToUserLink(mB, u2, u4), UserToUserLink(mB, u2, u5), UserToUserLink(mB, u2, u1),
+                UserToUserLink(mB, u3, u4), UserToUserLink(mB, u3, u5), UserToUserLink(mB, u3, u1), UserToUserLink(mB, u3, u2),
+                UserToUserLink(mB, u4, u5), UserToUserLink(mB, u4, u1), UserToUserLink(mB, u4, u2), UserToUserLink(mB, u4, u3),
+                UserToUserLink(mB, u5, u1), UserToUserLink(mB, u5, u2), UserToUserLink(mB, u5, u3), UserToUserLink(mB, u5, u4),
                 SUB(u1, mB), SUB(u2, mB), SUB(u3, mB), SUB(u4, mB), SUB(u5, mB)
             ]
         )
@@ -50,20 +50,20 @@ class OnSubscriptionEventsLeaderTests(BaseTest):
 
         # Test 5 users in Movement A (partily connected)
         add_initial_followers(leader_id, mA_id)
-        self.assertEqual(self.session.query(MUA).filter(
-            MUA.leader_id == leader_id,
-            MUA.follower_id.in_([u1_id, u2_id, u3_id, u4_id, u5_id]),
-            MUA.movement_id == mA_id,
-            MUA.destroyed.is_(None),
+        self.assertEqual(self.session.query(UserToUserLink).filter(
+            UserToUserLink.leader_id == leader_id,
+            UserToUserLink.follower_id.in_([u1_id, u2_id, u3_id, u4_id, u5_id]),
+            UserToUserLink.movement_id == mA_id,
+            UserToUserLink.destroyed.is_(None),
         ).count(), 5)  # This is 5 because we prioritize all users having 4 leaders
 
         # Test 5 users in Movement A (fully connected)
         add_initial_followers(leader_id, mB_id)
-        self.assertEqual(self.session.query(MUA).filter(
-            MUA.leader_id == leader_id,
-            MUA.follower_id.in_([u1_id, u2_id, u3_id, u4_id, u5_id]),
-            MUA.movement_id == mB_id,
-            MUA.destroyed.is_(None),
+        self.assertEqual(self.session.query(UserToUserLink).filter(
+            UserToUserLink.leader_id == leader_id,
+            UserToUserLink.follower_id.in_([u1_id, u2_id, u3_id, u4_id, u5_id]),
+            UserToUserLink.movement_id == mB_id,
+            UserToUserLink.destroyed.is_(None),
         ).count(), 0)  # This is 0 because we do not want to give any users more than 4 leaders
 
     def test_remove_all_followers(self):
@@ -79,22 +79,22 @@ class OnSubscriptionEventsLeaderTests(BaseTest):
         self.session.add_all(
             [
                 # Movement A
-                MUA(mA, leader, None),
+                UserToUserLink(mA, leader, None),
 
                 # Movement B
-                MUA(mB, u1, leader), MUA(mB, leader, u1),
+                UserToUserLink(mB, u1, leader), UserToUserLink(mB, leader, u1),
 
                 # Movement C
-                MUA(mC, u1, leader), MUA(mC, u2, leader),
-                MUA(mC, u1, None), MUA(mC, u2, None), MUA(mC, leader, None),
+                UserToUserLink(mC, u1, leader), UserToUserLink(mC, u2, leader),
+                UserToUserLink(mC, u1, None), UserToUserLink(mC, u2, None), UserToUserLink(mC, leader, None),
                 
                 # Movement D
-                MUA(mD, u1, leader), MUA(mD, u2, leader), MUA(mD, u3, leader),
-                MUA(mD, u1, u2), MUA(mD, u2, u3), MUA(mD, u3, u1),
+                UserToUserLink(mD, u1, leader), UserToUserLink(mD, u2, leader), UserToUserLink(mD, u3, leader),
+                UserToUserLink(mD, u1, u2), UserToUserLink(mD, u2, u3), UserToUserLink(mD, u3, u1),
 
                 # Movement E
-                MUA(mE, u1, u2), MUA(mE, u2, u3), MUA(mE, u3, u1),
-                MUA(mE, u2, u1), MUA(mE, u3, u2), MUA(mE, u1, u3)
+                UserToUserLink(mE, u1, u2), UserToUserLink(mE, u2, u3), UserToUserLink(mE, u3, u1),
+                UserToUserLink(mE, u2, u1), UserToUserLink(mE, u3, u2), UserToUserLink(mE, u1, u3)
             ]
         )
         self.session.commit()
@@ -111,62 +111,62 @@ class OnSubscriptionEventsLeaderTests(BaseTest):
         # Test removing all of 0 followers in movement A
         with freeze_time("2023-01-03 13:30:00+01:00"):
             remove_all_followers(leader_id, mA_id)
-        self.assertEqual(self.session.query(MUA).filter(
-            MUA.leader_id == leader_id,
-            MUA.movement_id == mA_id,
-            MUA.destroyed == datetime(2023, 1, 3, 12, 30),
+        self.assertEqual(self.session.query(UserToUserLink).filter(
+            UserToUserLink.leader_id == leader_id,
+            UserToUserLink.movement_id == mA_id,
+            UserToUserLink.destroyed == datetime(2023, 1, 3, 12, 30),
         ).count(), 0)
-        self.assertEqual(self.session.query(MUA).filter(
-            MUA.follower_id == leader_id,
-            MUA.movement_id == mA_id,
-            MUA.destroyed.is_(None),
+        self.assertEqual(self.session.query(UserToUserLink).filter(
+            UserToUserLink.follower_id == leader_id,
+            UserToUserLink.movement_id == mA_id,
+            UserToUserLink.destroyed.is_(None),
         ).count(), 1)
 
         # Test removing all of 1 follower in movement B
         with freeze_time("2023-01-03 13:30:00+01:00"):
             remove_all_followers(leader_id, mB_id)
-        self.assertEqual(self.session.query(MUA).filter(
-            MUA.leader_id == leader_id,
-            MUA.movement_id == mB_id,
-            MUA.destroyed == datetime(2023, 1, 3, 12, 30),
+        self.assertEqual(self.session.query(UserToUserLink).filter(
+            UserToUserLink.leader_id == leader_id,
+            UserToUserLink.movement_id == mB_id,
+            UserToUserLink.destroyed == datetime(2023, 1, 3, 12, 30),
         ).count(), 1)
 
         # Test 2 users in movement C
         with freeze_time("2023-01-03 13:30:00+01:00"):
             remove_all_followers(leader_id, mC_id)
-        self.assertEqual(self.session.query(MUA).filter(
-            MUA.leader_id == leader_id,
-            MUA.movement_id == mC_id,
-            MUA.destroyed == datetime(2023, 1, 3, 12, 30),
+        self.assertEqual(self.session.query(UserToUserLink).filter(
+            UserToUserLink.leader_id == leader_id,
+            UserToUserLink.movement_id == mC_id,
+            UserToUserLink.destroyed == datetime(2023, 1, 3, 12, 30),
         ).count(), 2)
-        self.assertEqual(self.session.query(MUA).filter(
-            MUA.leader_id.in_([u1_id, u2_id]),
-            MUA.follower_id.in_([u1_id, u2_id]),
-            MUA.movement_id == mC_id,
-            MUA.destroyed.is_(None),
+        self.assertEqual(self.session.query(UserToUserLink).filter(
+            UserToUserLink.leader_id.in_([u1_id, u2_id]),
+            UserToUserLink.follower_id.in_([u1_id, u2_id]),
+            UserToUserLink.movement_id == mC_id,
+            UserToUserLink.destroyed.is_(None),
         ).count(), 2)
 
         # Test 3 users in movement D
         with freeze_time("2023-01-03 13:30:00+01:00"):
             remove_all_followers(leader_id, mD_id)
-        self.assertEqual(self.session.query(MUA).filter(
-            MUA.leader_id == leader_id,
-            MUA.movement_id == mD_id,
-            MUA.destroyed == datetime(2023, 1, 3, 12, 30),
+        self.assertEqual(self.session.query(UserToUserLink).filter(
+            UserToUserLink.leader_id == leader_id,
+            UserToUserLink.movement_id == mD_id,
+            UserToUserLink.destroyed == datetime(2023, 1, 3, 12, 30),
         ).count(), 3)
-        self.assertEqual(self.session.query(MUA).filter(
-            MUA.leader_id == u3_id,
-            MUA.follower_id == u1_id,
-            MUA.movement_id == mD_id,
-            MUA.destroyed.is_(None),
+        self.assertEqual(self.session.query(UserToUserLink).filter(
+            UserToUserLink.leader_id == u3_id,
+            UserToUserLink.follower_id == u1_id,
+            UserToUserLink.movement_id == mD_id,
+            UserToUserLink.destroyed.is_(None),
         ).count(), 1)
 
         # Test 3 users in movement E (follower not in movement)
         with freeze_time("2023-01-03 00:00:00+01:00"):
             remove_all_followers(leader_id, mE_id)
-        self.assertEqual(self.session.query(MUA).filter(
-            MUA.movement_id == mE_id,
-            MUA.destroyed.is_(None)
+        self.assertEqual(self.session.query(UserToUserLink).filter(
+            UserToUserLink.movement_id == mE_id,
+            UserToUserLink.destroyed.is_(None)
         ).count(), 6)
 
 
@@ -188,19 +188,19 @@ class TestPossibleLeaders(BaseTest):
         movement1 = Movement("movement1", "twice daily")
         movement2 = Movement("movement2", "daily")
 
-        assoc1 = MUA(movement1, user1, user2)
-        assoc2 = MUA(movement1, user1, user4)
-        assoc3 = MUA(movement1, user1, user5)
-        assoc4 = MUA(movement1, user2, None)
-        assoc5 = MUA(movement1, user3, None)
-        assoc6 = MUA(movement1, user4, None)
-        assoc7 = MUA(movement1, user5, None)
-        assoc8 = MUA(movement2, user1, user3)
-        assoc9 = MUA(movement2, user1, user5)
-        assoc10 = MUA(movement2, user2, None)
-        assoc11 = MUA(movement2, user3, None)
-        assoc12 = MUA(movement2, user4, None)
-        assoc13 = MUA(movement2, user5, None)
+        assoc1 = UserToUserLink(movement1, user1, user2)
+        assoc2 = UserToUserLink(movement1, user1, user4)
+        assoc3 = UserToUserLink(movement1, user1, user5)
+        assoc4 = UserToUserLink(movement1, user2, None)
+        assoc5 = UserToUserLink(movement1, user3, None)
+        assoc6 = UserToUserLink(movement1, user4, None)
+        assoc7 = UserToUserLink(movement1, user5, None)
+        assoc8 = UserToUserLink(movement2, user1, user3)
+        assoc9 = UserToUserLink(movement2, user1, user5)
+        assoc10 = UserToUserLink(movement2, user2, None)
+        assoc11 = UserToUserLink(movement2, user3, None)
+        assoc12 = UserToUserLink(movement2, user4, None)
+        assoc13 = UserToUserLink(movement2, user5, None)
 
         self.session.add_all(
             [
@@ -253,14 +253,14 @@ class LeaderControllersTest(BaseTest):
     def test_send_signal(self):
         user1 = self.create_user()
         movement1 = self.create_movement()
-        mua1 = MUA(movement1, user1, None)
+        user_to_user_link1 = UserToUserLink(movement1, user1, None)
         self.create_subscription(movement=movement1, user=user1)
-        self.session.add_all([user1, movement1, mua1])
+        self.session.add_all([user1, movement1, user_to_user_link1])
         self.session.commit()
 
         send_signal(user1.id, movement1.id, "Test.")
 
-        self.session.add_all([user1, movement1, mua1])
+        self.session.add_all([user1, movement1, user_to_user_link1])
         signal = self.session.query(Signal).first()
         self.assertEqual(signal.message, "Test.")
         self.assertEqual(signal.leader, user1)
@@ -278,7 +278,7 @@ class LeaderControllersTest(BaseTest):
     def test_send_signal_commit(self):
         user1 = self.create_user()
         movement1 = self.create_movement()
-        assoc = MUA(movement1, user1)
+        assoc = UserToUserLink(movement1, user1)
         self.create_subscription(user=user1, movement=movement1)
         self.session.add(assoc)
         self.session.commit()
@@ -299,10 +299,10 @@ class FindSignalTest(BaseTest):
         self.create_subscription(movement=movement1, user=user2)
         self.create_subscription(movement=movement2, user=user1)
         self.create_subscription(movement=movement2, user=user2)
-        assoc1 = MUA(movement1, user1)
-        assoc2 = MUA(movement1, user2)
-        assoc3 = MUA(movement2, user1)
-        assoc4 = MUA(movement2, user2)
+        assoc1 = UserToUserLink(movement1, user1)
+        assoc2 = UserToUserLink(movement1, user2)
+        assoc3 = UserToUserLink(movement2, user1)
+        assoc4 = UserToUserLink(movement2, user2)
         self.session.add_all(
             [
                 user1,

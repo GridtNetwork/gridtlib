@@ -13,7 +13,7 @@ from .helpers import (
 )
 
 from gridt.controllers import leader as Leader
-from gridt.models import User, MovementUserAssociation, Signal, Movement, Subscription
+from gridt.models import User, UserToUserLink, Signal, Movement, Subscription
 
 # Move variable to config
 MESSAGE_HISTORY_MAX_DEPTH = 3
@@ -34,14 +34,14 @@ def add_initial_leaders(follower_id: int, movement_id: int) -> None:
         while len(get_leaders(user, movement, session)) < 4:
             avaiable = Leader.possible_leaders(user, movement, session)
             if avaiable:
-                mua = MovementUserAssociation(movement, user)
-                mua.leader = random.choice(avaiable)
-                session.add(mua)
+                user_to_user_link = UserToUserLink(movement, user)
+                user_to_user_link.leader = random.choice(avaiable)
+                session.add(user_to_user_link)
             else:
                 if not get_leaders(user, movement, session):
                     # Case no leaders have been added, add None
-                    mua = MovementUserAssociation(movement, user, None)
-                    session.add(mua)
+                    user_to_user_link = UserToUserLink(movement, user, None)
+                    session.add(user_to_user_link)
                 break
 
 
@@ -57,32 +57,32 @@ def remove_all_leaders(follower_id: int, movement_id: int) -> None:
     with session_scope() as session:
         movement = load_movement(movement_id, session)
 
-        follower_muas_to_destroy = session.query(
-            MovementUserAssociation
+        follower_user_to_user_links_to_destroy = session.query(
+            UserToUserLink
         ).filter(
-            MovementUserAssociation.movement_id == movement_id,
-            MovementUserAssociation.destroyed.is_(None),
-            MovementUserAssociation.follower_id == follower_id,
+            UserToUserLink.movement_id == movement_id,
+            UserToUserLink.destroyed.is_(None),
+            UserToUserLink.follower_id == follower_id,
         ).all()
 
-        for mua in follower_muas_to_destroy:
-            mua.destroy()
+        for user_to_user_link in follower_user_to_user_links_to_destroy:
+            user_to_user_link.destroy()
 
         session.commit()
 
         # For each leader removed try to find a new follower
-        for mua in follower_muas_to_destroy:
-            if not mua.leader:
+        for user_to_user_link in follower_user_to_user_links_to_destroy:
+            if not user_to_user_link.leader:
                 continue
 
-            poss_followers = possible_followers(mua.leader, mua.movement, session)
-            # Add new MUAs for each former leader.
+            poss_followers = possible_followers(user_to_user_link.leader, user_to_user_link.movement, session)
+            # Add new UserToUserLinks for each former leader.
             if poss_followers:
                 new_follower = random.choice(poss_followers)
-                new_mua = MovementUserAssociation(
-                    movement, new_follower, mua.leader
+                new_user_to_user_link = UserToUserLink(
+                    movement, new_follower, user_to_user_link.leader
                 )
-                session.add(new_mua)
+                session.add(new_user_to_user_link)
 
 
 def get_leaders(user: User, movement: Movement, session: Session) -> list:
@@ -94,13 +94,13 @@ def get_leaders(user: User, movement: Movement, session: Session) -> list:
     exclude from search.
     :returns: List object
     """
-    return [ mua.leader for mua in
-        session.query(MovementUserAssociation)
+    return [ user_to_user_link.leader for user_to_user_link in
+        session.query(UserToUserLink)
         .filter(
-            MovementUserAssociation.follower_id == user.id,
-            MovementUserAssociation.movement_id == movement.id,
-            not_(MovementUserAssociation.leader_id.is_(None)),
-            MovementUserAssociation.destroyed.is_(None)
+            UserToUserLink.follower_id == user.id,
+            UserToUserLink.movement_id == movement.id,
+            not_(UserToUserLink.leader_id.is_(None)),
+            UserToUserLink.destroyed.is_(None)
         )
     ]
 
@@ -109,12 +109,12 @@ def get_leader(follower_id: int, movement_id: int, leader_id: int):
     """Get a leader for a follower in movement and list his history."""
     with session_scope() as session:
         leader_link = (
-            session.query(MovementUserAssociation)
+            session.query(UserToUserLink)
             .filter(
-                MovementUserAssociation.follower_id == follower_id,
-                MovementUserAssociation.movement_id == movement_id,
-                MovementUserAssociation.leader_id == leader_id,
-                MovementUserAssociation.destroyed.is_(None),
+                UserToUserLink.follower_id == follower_id,
+                UserToUserLink.movement_id == movement_id,
+                UserToUserLink.leader_id == leader_id,
+                UserToUserLink.destroyed.is_(None),
             )
             .one()
         )
@@ -136,12 +136,12 @@ def follows_leader(follower_id: int, movement_id: int, leader_id: int):
     """Check if follower is following leader in movement."""
     with session_scope() as session:
         leader = (
-            session.query(MovementUserAssociation)
+            session.query(UserToUserLink)
             .filter(
-                MovementUserAssociation.follower_id == follower_id,
-                MovementUserAssociation.movement_id == movement_id,
-                MovementUserAssociation.leader_id == leader_id,
-                MovementUserAssociation.destroyed.is_(None),
+                UserToUserLink.follower_id == follower_id,
+                UserToUserLink.movement_id == movement_id,
+                UserToUserLink.leader_id == leader_id,
+                UserToUserLink.destroyed.is_(None),
             )
             .one_or_none()
         )
@@ -170,21 +170,21 @@ def swap_leader(follower_id: int, movement_id: int, leader_id: int) -> dict:
         if not poss_leaders:
             return None
 
-        mua = (
-            session.query(MovementUserAssociation)
+        user_to_user_link = (
+            session.query(UserToUserLink)
             .filter(
-                MovementUserAssociation.follower_id == follower.id,
-                MovementUserAssociation.leader_id == leader.id,
-                MovementUserAssociation.movement_id == movement.id,
-                MovementUserAssociation.destroyed.is_(None),
+                UserToUserLink.follower_id == follower.id,
+                UserToUserLink.leader_id == leader.id,
+                UserToUserLink.movement_id == movement.id,
+                UserToUserLink.destroyed.is_(None),
             )
             .one()
         )
 
-        mua.destroy()
+        user_to_user_link.destroy()
 
         new_leader = random.choice(poss_leaders)
-        new_assoc = MovementUserAssociation(movement, follower, new_leader)
+        new_assoc = UserToUserLink(movement, follower, new_leader)
         session.add(new_assoc)
 
         leader_dict = new_leader.to_json()
@@ -216,22 +216,21 @@ def possible_followers(
     :param session Session in which the query is performed
 
     """
-    MUA = MovementUserAssociation
     SUB = Subscription
 
-    follower_ids = session.query(MUA.follower_id).filter(
-        MUA.movement_id == movement.id, MUA.leader_id == user.id, MUA.destroyed.is_(None)
+    follower_ids = session.query(UserToUserLink.follower_id).filter(
+        UserToUserLink.movement_id == movement.id, UserToUserLink.leader_id == user.id, UserToUserLink.destroyed.is_(None)
     )
 
     potential_available_followers = (session.query(
         SUB,
-        func.count(MUA.follower_id))
-        .outerjoin(MUA, and_(SUB.user_id == MUA.follower_id, movement.id == MUA.movement_id))
+        func.count(UserToUserLink.follower_id))
+        .outerjoin(UserToUserLink, and_(SUB.user_id == UserToUserLink.follower_id, movement.id == UserToUserLink.movement_id))
         .filter(
                 SUB.movement_id == movement.id,
                 not_(SUB.user_id == user.id),
                 not_(SUB.user_id.in_(follower_ids)),
-                MUA.destroyed.is_(None)
+                UserToUserLink.destroyed.is_(None)
                 )
         .group_by(SUB.user_id).all())
 
