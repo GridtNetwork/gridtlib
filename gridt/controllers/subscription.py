@@ -38,9 +38,21 @@ def _get_subscription(user_id: int, movement_id: int, session: Session) -> Query
     return subscriptions.one()
 
 
-def is_subscribed(user_id: int, movement_id: int, session: Session) -> bool:
+def is_subscribed(user_id: int, movement_id: int) -> bool:
     """
-    Checks if a user is subscribled to a movement
+    Checks if a user is subscribed to a movement
+
+    Args:
+        user_id (int): The id of the user
+        movement_id (int): The id of the movement
+    """
+    with session_scope() as session:
+        return _subscription_exists(user_id, movement_id, session)
+
+
+def _subscription_exists(user_id: int, movement_id: int, session: Session) -> bool:
+    """
+    Helper function checks if a subscription exists.
 
     Args:
         user_id (int): The id of the user

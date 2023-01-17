@@ -102,7 +102,7 @@ def send_signal(leader_id: int, movement_id: int, message: str = None):
         leader = load_user(leader_id, session)
         movement = load_movement(movement_id, session)
 
-        assert Subscription.is_subscribed(leader_id, movement_id, session)
+        assert Subscription._subscription_exists(leader_id, movement_id, session)
 
         signal = Signal(leader, movement, message)
         session.add(signal)
