@@ -1,13 +1,13 @@
 from .user import User
 from .movement import Movement
-from .movement_user_association import MovementUserAssociation
+from .user_to_user_link import UserToUserLink
 from .signal import Signal
 from .subscription import Subscription
 from .creation import Creation
 
 __all__ = ["User",
-    "Movement", 
-    "MovementUserAssociation",
+    "Movement",
+    "UserToUserLink",
     "Signal",
     "Subscription",
     "Creation"

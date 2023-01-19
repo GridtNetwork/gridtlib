@@ -2,7 +2,7 @@ from freezegun import freeze_time
 from unittest import skip
 
 from gridt.tests.basetest import BaseTest
-from gridt.models import Movement, Subscription, MovementUserAssociation as MUA
+from gridt.models import Movement, Subscription, UserToUserLink
 
 from gridt.controllers.leader import send_signal
 from gridt.controllers.movements import get_movement, create_movement
@@ -42,10 +42,10 @@ class MovementControllerUnitTests(BaseTest):
         user_2 = self.create_user(generate_bio=True)
         subscription_1 = Subscription(user_1, movement)
         subscription_2 = Subscription(user_2, movement)
-        mua_1 = MUA(movement, user_1, user_2)
-        mua_2 = MUA(movement, user_2, user_1)
+        user_to_user_link1 = UserToUserLink(movement, user_1, user_2)
+        user_to_user_link1 = UserToUserLink(movement, user_2, user_1)
 
-        self.session.add_all([movement, subscription_1, subscription_2, mua_1, mua_2])
+        self.session.add_all([movement, subscription_1, subscription_2, user_to_user_link1, user_to_user_link1])
         self.session.commit()
 
         u1_id, u2_id, m_id = user_1.id, user_2.id, movement.id

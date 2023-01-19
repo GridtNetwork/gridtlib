@@ -25,7 +25,7 @@ class Movement(Base):
     :attribute users: All user that have been subscribed to this movement.
     :attribute user_associations: All instances of UserAssociation that point
     to this movement
-    :class:`models.movement_user_association.MovementUserAssociation` with that
+    :class:`models.user_to_user_link_association.UserToUserLink` with that
     link to this movement.
     """
 
