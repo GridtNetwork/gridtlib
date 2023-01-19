@@ -112,10 +112,13 @@ class OnSubscriptionEventsFollowerTests(BaseTest):
         self.session.add_all(
             [
                 # Movement B
-                UserToUserLink(mB, u1, None),
+                # UserToUserLink(mB, u1, None),
+                SUB(u1, mB),
 
                 # Movement C
                 UserToUserLink(mC, u1, u2), UserToUserLink(mC, u2, u1),
+                SUB(u1, mC),
+                SUB(u2, mC),
 
                 # Movement D
                 UserToUserLink(mD, u1, u2), UserToUserLink(mD, u1, u3),
@@ -123,13 +126,15 @@ class OnSubscriptionEventsFollowerTests(BaseTest):
                 UserToUserLink(mD, u3, u4), UserToUserLink(mD, u3, u5),
                 UserToUserLink(mD, u4, u5), UserToUserLink(mD, u3, u1),
                 UserToUserLink(mD, u5, u1), UserToUserLink(mD, u5, u2),
+                SUB(u1, mD), SUB(u2, mD), SUB(u3, mD), SUB(u4, mD), SUB(u5, mD),
 
                 # Movement E
                 UserToUserLink(mE, u1, u2), UserToUserLink(mE, u1, u3), UserToUserLink(mE, u1, u4), UserToUserLink(mE, u1, u5),
                 UserToUserLink(mE, u2, u3), UserToUserLink(mE, u2, u4), UserToUserLink(mE, u2, u5), UserToUserLink(mE, u2, u1),
                 UserToUserLink(mE, u3, u4), UserToUserLink(mE, u3, u5), UserToUserLink(mE, u3, u1), UserToUserLink(mE, u3, u2),
                 UserToUserLink(mE, u4, u5), UserToUserLink(mE, u4, u1), UserToUserLink(mE, u4, u2), UserToUserLink(mE, u4, u3),
-                UserToUserLink(mE, u5, u1), UserToUserLink(mE, u5, u2), UserToUserLink(mE, u5, u3), UserToUserLink(mE, u5, u4)
+                UserToUserLink(mE, u5, u1), UserToUserLink(mE, u5, u2), UserToUserLink(mE, u5, u3), UserToUserLink(mE, u5, u4),
+                SUB(u1, mE), SUB(u2, mE), SUB(u3, mE), SUB(u4, mE), SUB(u5, mE),
             ]
         )
         self.session.commit()
@@ -147,13 +152,7 @@ class OnSubscriptionEventsFollowerTests(BaseTest):
 
         # Test 0 users in movement A
         add_initial_leaders(follower_id, mA_id)
-        self.assertEqual(self.session.query(UserToUserLink).filter(UserToUserLink.movement_id == mA_id).count(), 1)
-        self.assertEqual(self.session.query(UserToUserLink).filter(
-            UserToUserLink.follower_id == follower_id,
-            UserToUserLink.movement_id == mA_id,
-            UserToUserLink.leader_id.is_(None),
-            UserToUserLink.destroyed.is_(None),
-        ).count(), 1)
+        self.assertEqual(self.session.query(UserToUserLink).filter(UserToUserLink.movement_id == mA_id).count(), 0)
 
         # Test 1 user in movement B
         add_initial_leaders(follower_id, mB_id)
@@ -432,10 +431,10 @@ class SwapTest(BaseTest):
 
         user4 = User("user4", "test4@test.com", "password")
         user5 = User("user5", "test5@test.com", "password")
-        assoc3 = UserToUserLink(movement, user4, None)
-        assoc4 = UserToUserLink(movement, user5, None)
+        sub3 = SUB(user4, movement)
+        sub4 = SUB(user5, movement)
         self.session.add_all([user1, user2, user3, movement])
-        self.session.add_all([user4, user5, assoc1, assoc2, assoc3, assoc4])
+        self.session.add_all([user4, user5, assoc1, assoc2, sub3, sub4])
         self.session.commit()
 
         user4_dict = user4.to_json()
@@ -449,7 +448,7 @@ class SwapTest(BaseTest):
             [user4_dict, user5_dict],
         )
         self.session.add_all([user1, user2, user3, movement])
-        self.session.add_all([user4, user5, assoc1, assoc2, assoc3, assoc4])
+        self.session.add_all([user4, user5, assoc1, assoc2, sub3, sub4])
         self.assertEqual(len(get_leaders(user2, movement, self.session)), 1)
 
     def test_swap_leader_complicated(self):
@@ -481,6 +480,13 @@ class SwapTest(BaseTest):
         assoc4 = UserToUserLink(movement1, user1, user4)
         assoc5 = UserToUserLink(movement2, user1, user5)
         assoc6 = UserToUserLink(movement2, user5, user1)
+        sub1 = SUB(user1, movement1)
+        sub2 = SUB(user2, movement1)
+        sub3 = SUB(user3, movement1)
+        sub4 = SUB(user4, movement1)
+        sub5 = SUB(user1, movement2)
+        sub6 = SUB(user5, movement2)
+
 
         self.session.add_all(
             [
@@ -496,6 +502,12 @@ class SwapTest(BaseTest):
                 assoc4,
                 assoc5,
                 assoc6,
+                sub1,
+                sub2,
+                sub3,
+                sub4,
+                sub5,
+                sub6
             ]
         )
         self.session.commit()
