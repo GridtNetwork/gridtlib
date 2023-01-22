@@ -112,7 +112,6 @@ class OnSubscriptionEventsFollowerTests(BaseTest):
         self.session.add_all(
             [
                 # Movement B
-                # UserToUserLink(mB, u1, None),
                 SUB(u1, mB),
 
                 # Movement C

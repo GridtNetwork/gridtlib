@@ -32,12 +32,12 @@ def add_initial_leaders(follower_id: int, movement_id: int) -> None:
         movement = load_movement(movement_id, session)
 
         while len(get_leaders(user, movement, session)) < 4:
-            avaiable = Leader.possible_leaders(user, movement, session)
-            if not avaiable:
+            available = Leader.possible_leaders(user, movement, session)
+            if not available:
                 break
 
-            user_to_user_link = UserToUserLink(movement, user)
-            user_to_user_link.leader = random.choice(avaiable)
+            random_leader = random.choice(available)
+            user_to_user_link = UserToUserLink(movement, user, random_leader)
             session.add(user_to_user_link)
 
 
