@@ -79,22 +79,35 @@ class OnSubscriptionEventsLeaderTests(BaseTest):
         self.session.add_all(
             [
                 # Movement A
-                UserToUserLink(mA, leader, None),
+                SUB(leader, mA),
 
                 # Movement B
-                UserToUserLink(mB, u1, leader), UserToUserLink(mB, leader, u1),
+                UserToUserLink(mB, u1, leader),
+                UserToUserLink(mB, leader, u1),
+                SUB(u1, mB),
+                SUB(leader, mB),
 
                 # Movement C
-                UserToUserLink(mC, u1, leader), UserToUserLink(mC, u2, leader),
-                UserToUserLink(mC, u1, None), UserToUserLink(mC, u2, None), UserToUserLink(mC, leader, None),
+                UserToUserLink(mC, u1, leader),
+                UserToUserLink(mC, u2, leader),
+                SUB(u1, mC),
+                SUB(leader, mC),
+                SUB(u2, mC),
                 
                 # Movement D
                 UserToUserLink(mD, u1, leader), UserToUserLink(mD, u2, leader), UserToUserLink(mD, u3, leader),
                 UserToUserLink(mD, u1, u2), UserToUserLink(mD, u2, u3), UserToUserLink(mD, u3, u1),
+                SUB(u1, mD),
+                SUB(leader, mD),
+                SUB(u2, mD),
+                SUB(u3, mD),
 
                 # Movement E
                 UserToUserLink(mE, u1, u2), UserToUserLink(mE, u2, u3), UserToUserLink(mE, u3, u1),
-                UserToUserLink(mE, u2, u1), UserToUserLink(mE, u3, u2), UserToUserLink(mE, u1, u3)
+                UserToUserLink(mE, u2, u1), UserToUserLink(mE, u3, u2), UserToUserLink(mE, u1, u3),
+                SUB(u1, mE),
+                SUB(u3, mE),
+                SUB(u2, mE)
             ]
         )
         self.session.commit()
@@ -116,11 +129,6 @@ class OnSubscriptionEventsLeaderTests(BaseTest):
             UserToUserLink.movement_id == mA_id,
             UserToUserLink.destroyed == datetime(2023, 1, 3, 12, 30),
         ).count(), 0)
-        self.assertEqual(self.session.query(UserToUserLink).filter(
-            UserToUserLink.follower_id == leader_id,
-            UserToUserLink.movement_id == mA_id,
-            UserToUserLink.destroyed.is_(None),
-        ).count(), 1)
 
         # Test removing all of 1 follower in movement B
         with freeze_time("2023-01-03 13:30:00+01:00"):
@@ -191,16 +199,21 @@ class TestPossibleLeaders(BaseTest):
         assoc1 = UserToUserLink(movement1, user1, user2)
         assoc2 = UserToUserLink(movement1, user1, user4)
         assoc3 = UserToUserLink(movement1, user1, user5)
-        assoc4 = UserToUserLink(movement1, user2, None)
-        assoc5 = UserToUserLink(movement1, user3, None)
-        assoc6 = UserToUserLink(movement1, user4, None)
-        assoc7 = UserToUserLink(movement1, user5, None)
         assoc8 = UserToUserLink(movement2, user1, user3)
         assoc9 = UserToUserLink(movement2, user1, user5)
-        assoc10 = UserToUserLink(movement2, user2, None)
-        assoc11 = UserToUserLink(movement2, user3, None)
-        assoc12 = UserToUserLink(movement2, user4, None)
-        assoc13 = UserToUserLink(movement2, user5, None)
+        sub1 = SUB(user1, movement1)
+        sub2 = SUB(user2, movement1)
+        sub3 = SUB(user3, movement1)
+        sub4 = SUB(user4, movement1)
+        sub5 = SUB(user5, movement1)
+
+        sub6 = SUB(user1, movement2)
+        sub7 = SUB(user2, movement2)
+        sub8 = SUB(user3, movement2)
+        sub9 = SUB(user4, movement2)
+        sub10 = SUB(user5, movement2)
+
+
 
         self.session.add_all(
             [
@@ -214,16 +227,18 @@ class TestPossibleLeaders(BaseTest):
                 assoc1,
                 assoc2,
                 assoc3,
-                assoc4,
-                assoc5,
-                assoc6,
-                assoc7,
+                sub1,
+                sub2,
+                sub3,
+                sub4,
+                sub5,
+                sub6,
+                sub7,
+                sub8,
+                sub9,
+                sub10,
                 assoc8,
                 assoc9,
-                assoc10,
-                assoc11,
-                assoc12,
-                assoc13,
             ]
         )
         self.session.commit()
@@ -253,14 +268,13 @@ class LeaderControllersTest(BaseTest):
     def test_send_signal(self):
         user1 = self.create_user()
         movement1 = self.create_movement()
-        user_to_user_link1 = UserToUserLink(movement1, user1, None)
         self.create_subscription(movement=movement1, user=user1)
-        self.session.add_all([user1, movement1, user_to_user_link1])
+        self.session.add_all([user1, movement1])
         self.session.commit()
 
         send_signal(user1.id, movement1.id, "Test.")
 
-        self.session.add_all([user1, movement1, user_to_user_link1])
+        self.session.add_all([user1, movement1])
         signal = self.session.query(Signal).first()
         self.assertEqual(signal.message, "Test.")
         self.assertEqual(signal.leader, user1)
@@ -278,9 +292,7 @@ class LeaderControllersTest(BaseTest):
     def test_send_signal_commit(self):
         user1 = self.create_user()
         movement1 = self.create_movement()
-        assoc = UserToUserLink(movement1, user1)
         self.create_subscription(user=user1, movement=movement1)
-        self.session.add(assoc)
         self.session.commit()
         send_signal(user1.id, movement1.id)
 
@@ -299,20 +311,13 @@ class FindSignalTest(BaseTest):
         self.create_subscription(movement=movement1, user=user2)
         self.create_subscription(movement=movement2, user=user1)
         self.create_subscription(movement=movement2, user=user2)
-        assoc1 = UserToUserLink(movement1, user1)
-        assoc2 = UserToUserLink(movement1, user2)
-        assoc3 = UserToUserLink(movement2, user1)
-        assoc4 = UserToUserLink(movement2, user2)
+
         self.session.add_all(
             [
                 user1,
                 user2,
                 movement1,
                 movement2,
-                assoc1,
-                assoc2,
-                assoc3,
-                assoc4,
             ]
         )
         self.session.commit()

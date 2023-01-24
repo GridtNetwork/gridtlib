@@ -86,7 +86,7 @@ def extend_movement_json(movement, user, session) -> dict:
     movement_json = movement.to_json()
     movement_json["subscribed"] = False
     
-    if Subscription.is_subscribed(user.id, movement.id, session):
+    if Subscription._subscription_exists(user.id, movement.id, session):
         movement_json["subscribed"] = True
         Subscription.add_json_subscription_details(movement_json, movement, user, session)
 

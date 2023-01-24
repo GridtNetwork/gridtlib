@@ -75,9 +75,7 @@ class User(Base):
 
         payload = {"user_id": self.id, "exp": exp}
 
-        token = jwt.encode(payload, secret_key, algorithm="HS256").decode(
-            "utf-8"
-        )
+        token = jwt.encode(payload, secret_key, algorithm="HS256")
         return token
 
     def get_email_change_token(self, new_email, secret_key):
@@ -97,9 +95,7 @@ class User(Base):
 
         token_dict = {"user_id": self.id, "new_email": new_email, "exp": exp}
 
-        token = jwt.encode(token_dict, secret_key, algorithm="HS256").decode(
-            "utf-8"
-        )
+        token = jwt.encode(token_dict, secret_key, algorithm="HS256")
         return token
 
     def to_json(self, include_email=False):

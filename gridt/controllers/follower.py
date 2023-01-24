@@ -32,17 +32,13 @@ def add_initial_leaders(follower_id: int, movement_id: int) -> None:
         movement = load_movement(movement_id, session)
 
         while len(get_leaders(user, movement, session)) < 4:
-            avaiable = Leader.possible_leaders(user, movement, session)
-            if avaiable:
-                user_to_user_link = UserToUserLink(movement, user)
-                user_to_user_link.leader = random.choice(avaiable)
-                session.add(user_to_user_link)
-            else:
-                if not get_leaders(user, movement, session):
-                    # Case no leaders have been added, add None
-                    user_to_user_link = UserToUserLink(movement, user, None)
-                    session.add(user_to_user_link)
+            available = Leader.possible_leaders(user, movement, session)
+            if not available:
                 break
+
+            random_leader = random.choice(available)
+            user_to_user_link = UserToUserLink(movement, user, random_leader)
+            session.add(user_to_user_link)
 
 
 def remove_all_leaders(follower_id: int, movement_id: int) -> None:
@@ -99,7 +95,6 @@ def get_leaders(user: User, movement: Movement, session: Session) -> list:
         .filter(
             UserToUserLink.follower_id == user.id,
             UserToUserLink.movement_id == movement.id,
-            not_(UserToUserLink.leader_id.is_(None)),
             UserToUserLink.destroyed.is_(None)
         )
     ]

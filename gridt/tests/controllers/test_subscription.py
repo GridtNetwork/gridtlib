@@ -2,6 +2,7 @@ from ..basetest import BaseTest
 
 from gridt.controllers.subscription import (
     _get_subscription,
+    _subscription_exists,
     is_subscribed,
     get_subscribers,
     get_subscriptions,
@@ -42,7 +43,7 @@ class SubscriptionControllerUnitTest(BaseTest):
         self.assertEqual(subscription1.user_id, subscription2.user_id)
         self.assertEqual(subscription1.movement_id, subscription2.movement_id)
 
-    def test_is_subscribed(self):
+    def test_subscription_exists(self):
         user = self.create_user()
         movement = self.create_movement() 
         self.session.commit()
@@ -50,17 +51,17 @@ class SubscriptionControllerUnitTest(BaseTest):
         user_id = user.id
         movement_id = movement.id
 
-        self.assertFalse(is_subscribed(user_id, movement_id, self.session))
+        self.assertFalse(_subscription_exists(user_id, movement_id, self.session))
 
         subscription = Subscription(user, movement)
         self.session.add(subscription)
 
-        self.assertTrue(is_subscribed(user_id, movement_id, self.session))
+        self.assertTrue(_subscription_exists(user_id, movement_id, self.session))
 
         subscription.unsubscribe()
         self.session.add(subscription)
 
-        self.assertFalse(is_subscribed(user_id, movement_id, self.session))
+        self.assertFalse(_subscription_exists(user_id, movement_id, self.session))
 
     def test_new_subscription(self):
         user = self.create_user()
@@ -188,13 +189,13 @@ class SubscriptionControllerIntergrationTests(BaseTest):
         self.assertDictEqual(json_2['user'], andrei_json)
         self.assertEqual(json_2['time_started'], datetime(2023, 1, 6, 9, 30))
 
-        self.assertTrue(is_subscribed(antonin_id, movement_1_id, self.session))
-        self.assertTrue(is_subscribed(andrei_id, movement_1_id, self.session))
+        self.assertTrue(is_subscribed(antonin_id, movement_1_id))
+        self.assertTrue(is_subscribed(andrei_id, movement_1_id))
         self.assertIn(antonin_json, get_subscribers(movement_1_id))
         self.assertIn(andrei_json, get_subscribers(movement_1_id))
         self.assertEqual(get_subscriptions(antonin_id)[0]['id'], movement_1_id)
         self.assertEqual(get_subscriptions(andrei_id)[0]['id'], movement_1_id)
-        self.assertFalse(is_subscribed(antonin_id, movement_2_id, self.session))
+        self.assertFalse(is_subscribed(antonin_id, movement_2_id))
         self.assertNotIn(antonin_json, get_subscribers(movement_2_id))
         self.assertNotIn(andrei_json, get_subscribers(movement_2_id))
 
@@ -230,7 +231,7 @@ class SubscriptionControllerIntergrationTests(BaseTest):
         self.assertIsNone(json1['time_ended'])
         self.assertTrue(json1['subscribed'])
 
-        self.assertTrue(is_subscribed(antonin_id, movement_id, self.session))
+        self.assertTrue(is_subscribed(antonin_id, movement_id))
 
         with freeze_time("2023-01-06 10:00:00"):
             json2 = remove_subscription(antonin_id, movement_id)
@@ -240,14 +241,7 @@ class SubscriptionControllerIntergrationTests(BaseTest):
         self.assertEqual(json2['time_ended'], datetime(2023, 1, 6, 10, 0))
         self.assertFalse(json2['subscribed'])
 
-        self.assertFalse(is_subscribed(antonin_id, movement_id, self.session))
+        self.assertFalse(is_subscribed(antonin_id, movement_id))
         self.assertNotIn(antonin_json, get_subscribers(movement_id))
         self.assertListEqual([], get_subscriptions(antonin_id))
-
-        self.assertEqual(self.session.query(UserToUserLink).filter(
-            UserToUserLink.follower_id == antonin_id,
-            UserToUserLink.movement_id == movement_id,
-            UserToUserLink.leader_id.is_(None),
-            UserToUserLink.destroyed == datetime(2023, 1, 6, 10, 0),
-        ).count(), 1, "Mua must be destroyed when user is removed from movement.")
 

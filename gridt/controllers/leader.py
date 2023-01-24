@@ -4,6 +4,7 @@ from gridt.models import UserToUserLink
 
 from gridt.controllers import follower as Follower
 from gridt.controllers import subscription as Subscription
+from gridt.models import Subscription as SUB
 
 import random
 
@@ -28,20 +29,6 @@ def add_initial_followers(leader_id: int, movement_id: int) -> None:
         for new_follower in Follower.possible_followers(user, movement, session):
             user_to_user_link = UserToUserLink(movement, new_follower, leader=user)
             session.add(user_to_user_link)
-
-            # # Remove any None associations the new follower may have had
-            # assoc_none = (
-            #     session.query(UserToUserLink)
-            #     .filter(
-            #         UserToUserLink.movement_id == movement.id,
-            #         UserToUserLink.follower_id == new_follower.id,
-            #         UserToUserLink.leader_id.is_(None),
-            #     )
-            #     .group_by(UserToUserLink.follower_id)
-            #     .all()
-            # )
-            # for a in assoc_none:
-            #     a.destroy()
 
 
 def remove_all_followers(leader_id: int, movement_id: int) -> None:
@@ -79,9 +66,6 @@ def remove_all_followers(leader_id: int, movement_id: int) -> None:
                     movement, user_to_user_link.follower, new_leader
                 )
                 session.add(new_user_to_user_link)
-            else:
-                new_user_to_user_link = UserToUserLink(movement, user_to_user_link.follower, None)
-                session.add(new_user_to_user_link)
 
 
 def get_last_signal(
@@ -102,7 +86,7 @@ def send_signal(leader_id: int, movement_id: int, message: str = None):
         leader = load_user(leader_id, session)
         movement = load_movement(movement_id, session)
 
-        assert Subscription.is_subscribed(leader_id, movement_id, session)
+        assert Subscription._subscription_exists(leader_id, movement_id, session)
 
         signal = Signal(leader, movement, message)
         session.add(signal)
@@ -114,21 +98,21 @@ def possible_leaders(
 ) -> Query:
     """Find possible leaders for a user in a movement."""
 
+
     leader_ids = session.query(UserToUserLink.leader_id).filter(
         UserToUserLink.movement_id == movement.id,
-        not_(UserToUserLink.leader_id.is_(None)),
         UserToUserLink.follower_id == user.id,
         UserToUserLink.destroyed.is_(None)
     )
 
-    possible_leaders = [user_to_user_link.follower for user_to_user_link in
-        session.query(UserToUserLink)
+    possible_leaders = [ subscription.user for subscription in
+        session.query(SUB)
         .filter(
-            UserToUserLink.movement_id == movement.id,
-            UserToUserLink.destroyed.is_(None),
-            not_(UserToUserLink.follower_id == user.id)
-        ).group_by(UserToUserLink.follower_id)
-        .filter(not_(UserToUserLink.follower_id.in_(leader_ids)))
+            SUB.movement_id == movement.id,
+            SUB.time_removed.is_(None),
+            not_(SUB.user_id == user.id)
+        ).group_by(SUB.user_id)
+        .filter(not_(SUB.user_id.in_(leader_ids)))
     ]
     
     # IDK why but if I don't add them to the session it crashes
