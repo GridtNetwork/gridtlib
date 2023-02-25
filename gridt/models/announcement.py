@@ -35,3 +35,17 @@ class Announcement(Base):
             str: str representation of the Announcement
         """
         return f'Announcement for movement {self.movement.id}: {self.message}'
+
+    def to_json(self) -> dict:
+        """
+        Converts the announcement to json
+
+        Returns:
+            dict: JSON representation of the Announcement
+        """
+        return {
+            "id": self.id,
+            "movement_id": self.movement_id,
+            "message": self.message,
+            "time": self.timestamp
+        }
