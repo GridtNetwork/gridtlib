@@ -11,7 +11,9 @@ class Announcement(Base):
     id = Column(Integer, primary_key=True)
     movement_id = Column(Integer, ForeignKey("movements.id"), nullable=False)
     message = Column(String(140), nullable=False)
-    timestamp = Column(DateTime(timezone=True), nullable=False)
+    created_time = Column(DateTime(timezone=True), nullable=False)
+    updated_time = Column(DateTime(timezone=True), nullable=True)
+    removed_time = Column(DateTime(timezone=True), nullable=True)
 
     movement = relationship(Movement)
 
@@ -25,7 +27,9 @@ class Announcement(Base):
         """
         self.movement = movement
         self.message = message
-        self.timestamp = datetime.now()
+        self.created_time = datetime.now()
+        self.updated_time = None
+        self.removed_time = None
 
     def __str__(self) -> str:
         """
@@ -47,5 +51,22 @@ class Announcement(Base):
             "id": self.id,
             "movement_id": self.movement_id,
             "message": self.message,
-            "time": self.timestamp
+            "created_time": self.created_time,
+            "updated_time": self.updated_time
         }
+
+    def update_message(self, message: str):
+        """
+        Updates the message of the announcement
+
+        Args:
+            message (str): The message that should replace the previous announcement
+        """
+        self.message = message
+        self.updated_time = datetime.now()
+
+    def remove(self):
+        """
+        Delete the announcement
+        """
+        self.removed_time = datetime.now()

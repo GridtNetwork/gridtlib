@@ -17,7 +17,7 @@ class UnitTestAnnouncmentModel(BaseTest):
         self.session.commit()
 
         self.assertEqual(announcement.message, message)
-        self.assertEqual(announcement.timestamp, datetime(2023, 2, 20, 14, 0))
+        self.assertEqual(announcement.created_time, datetime(2023, 2, 20, 14, 0))
         self.assertEqual(announcement.movement, movement)
 
     def test_str(self):
@@ -45,5 +45,27 @@ class UnitTestAnnouncmentModel(BaseTest):
             "id": announcement_id,
             "movement_id": movement_id,
             "message": message,
-            "time": datetime(2023, 2, 25, 16, 0)
+            "created_time": datetime(2023, 2, 25, 16, 0),
+            "updated_time": None
         })
+
+    def test_update_message(self):
+        movement = self.create_movement()
+        message = "This is a dummy announcement, Hello World!"
+        announcement = Announcement(movement, message)
+
+        with freeze_time("2023-02-25 20:00:00"):
+            announcement.update_message("This is an announcement, Hello!")
+        
+        self.assertEqual("This is an announcement, Hello!", announcement.message)
+        self.assertEqual(datetime(2023, 2, 25, 20, 0, 0), announcement.updated_time)
+
+    def test_remove(self):
+        movement = self.create_movement()
+        message = "This is a dummy announcement, Hello World!"
+        announcement = Announcement(movement, message)
+
+        with freeze_time("2023-02-25 20:00:00"):
+            announcement.remove()
+
+        self.assertEqual(datetime(2023, 2, 25, 20, 0, 0), announcement.removed_time)
