@@ -69,6 +69,7 @@ class MovementControllerUnitTests(BaseTest):
             "short_description": "Hi",
             "description": "A long description",
             "interval": "daily",
+            "last_announcement": None,
             "subscribed": True,
             "leaders": [user_dict],
             "last_signal_sent": {

@@ -6,6 +6,7 @@ from .helpers import (
 )
 from gridt.models import Movement
 from gridt.controllers import subscription as Subscription
+from gridt.controllers import announcement as Announcement
 
 
 def create_movement(
@@ -88,6 +89,7 @@ def extend_movement_json(movement, user, session) -> dict:
     
     if Subscription._subscription_exists(user.id, movement.id, session):
         movement_json["subscribed"] = True
+        Announcement.add_json_announcement_details(movement_json, movement, session)
         Subscription.add_json_subscription_details(movement_json, movement, user, session)
 
     return movement_json
