@@ -19,9 +19,11 @@ class UnitTestsAnnouncementController(BaseTest):
 
     def test_create_announcement(self):
         movement = self.create_movement()
+        user = self.create_user()
         self.session.commit()
 
         movement_id = movement.id
+        user_id = user.id
         message = "Hello, this is a new announcement"
         expected = {
             "id": 1,
@@ -32,15 +34,16 @@ class UnitTestsAnnouncementController(BaseTest):
         }
 
         with freeze_time("2023-02-25 16:30:00"):
-            announcement_json = create_announcement(movement_id=movement_id, message=message)
+            announcement_json = create_announcement(movement_id=movement_id, message=message, user_id=user_id)
 
         self.assertDictEqual(announcement_json, expected)
 
     def test_update_announcement(self):
         movement = self.create_movement()
+        user = self.create_user()
 
         with freeze_time("2023-02-25 17:00:00"):
-            announcement = Announcement(movement, "Hello, this is new annoucement")
+            announcement = Announcement(movement, "Hello, this is new annoucement", user)
         
         self.session.add(announcement)
         self.session.commit()
@@ -49,7 +52,7 @@ class UnitTestsAnnouncementController(BaseTest):
         expected = announcement.to_json()
 
         with freeze_time("2023-02-25 16:30"):
-            announcement_json = update_announcement("Hello, this is a new announcement", announcement_id)
+            announcement_json = update_announcement("Hello, this is a new announcement", announcement_id, user.id)
 
         self.assertDictEqual(announcement_json, expected)
 
@@ -61,14 +64,15 @@ class UnitTestsAnnouncementController(BaseTest):
         
     def test_delete_announcement(self):
         movement = self.create_movement()
-        announcement = Announcement(movement, "Hello, this is a new announcement")
+        user = self.create_user()
+        announcement = Announcement(movement, "Hello, this is a new announcement", user)
         self.session.add(announcement)
         self.session.commit()
 
         expected_json = announcement.to_json()
 
         with freeze_time("2023-02-25 21:00:00"):
-            announcement_json = delete_announcement(announcement.id)
+            announcement_json = delete_announcement(announcement.id, user.id)
 
         self.assertDictEqual(announcement_json, expected_json)
         self.assertEqual(1, self.session.query(Announcement).filter(
@@ -77,10 +81,11 @@ class UnitTestsAnnouncementController(BaseTest):
 
     def test_get_announcements(self):
         movement = self.create_movement()
+        user = self.create_user()
         with freeze_time("2023-02-25 18:30:00"):
-            announcement1 = Announcement(movement, "Welcome to the movement!")
+            announcement1 = Announcement(movement, "Welcome to the movement!", user)
         with freeze_time("2023-02-25 18:32:00"):
-            announcement2 = Announcement(movement, "Lets make the world a better place! or something?")
+            announcement2 = Announcement(movement, "Lets make the world a better place! or something?", user)
         self.session.add_all([announcement1, announcement2])
         self.session.commit()
 
@@ -92,8 +97,9 @@ class UnitTestsAnnouncementController(BaseTest):
 
     def test_add_json_announcement_details(self):
         movement = self.create_movement()
+        user = self.create_user()
         with freeze_time("2023-02-25 19:00:00"):
-            announcement = Announcement(movement, "Hello, this is a new announcement")
+            announcement = Announcement(movement, "Hello, this is a new announcement", user)
         self.session.add(announcement)
         self.session.commit()
 
@@ -136,6 +142,6 @@ class TestUserStoriesAnnouncementController(BaseTest):
     @skip
     def test_view_announcements(self):
         """
-        As a subscriber to a movement I would like to be able to view announcements in the movements I am subscribed too
+        As a subscriber to a movement I would like to be able to view the movement's announcements
         """
         pass

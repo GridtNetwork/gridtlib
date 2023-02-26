@@ -1,29 +1,30 @@
 """TODO
  - User should be saved in announcement
- - Announcement should have an updated time 
- - Announcements should have a deleted time 
  - 
 
 Random ass decisions I made:
  - A user does not need to be subscribed to get announcements of a movement through the API
  - Deleted Announcements are kept in the database
- - We are saving the time an announcement was updated (but this isn't used for sorting)
- - 
+ - We are saving the time an announcement was last updated (but this isn't used for sorting)
+ - Anyone can update an announcement aslong as they are an admin (they don't have to be the poster of the original)
+ - Anyone can delete an announcement as long as they are an admin (they don't have to be the poster of the original)
 """
 from .helpers import (
     session_scope,
-    load_movement
+    load_movement,
+    load_user
 )
 
 from gridt.models import Announcement
 
-def create_announcement(message: str, movement_id: int) -> dict:
+def create_announcement(message: str, movement_id: int, user_id: int) -> dict:
     """
     This function creates a new announcement from a user.
 
     Args:
         message (str): The message in the announcement
         movement_id (int): The id of the movement which should have the announcement.
+        user_id (int): The id of the user which is creating the announcement.
 
     Returns:
         dict: The JSON representation of the new announcement
@@ -33,7 +34,8 @@ def create_announcement(message: str, movement_id: int) -> dict:
     """
     with session_scope() as session:
         movement = load_movement(movement_id, session)
-        announcement = Announcement(movement=movement, message=message)
+        user = load_user(user_id, session)
+        announcement = Announcement(movement=movement, message=message, user=user)
         session.add(announcement)
         session.commit()
         announcement_json = announcement.to_json()
@@ -41,7 +43,7 @@ def create_announcement(message: str, movement_id: int) -> dict:
     return announcement_json
 
 
-def update_announcement(message: str, announcement_id: int) -> dict:
+def update_announcement(message: str, announcement_id: int, user_id: int) -> dict:
     """
     This function updates an announcement from user.
 
@@ -66,7 +68,7 @@ def update_announcement(message: str, announcement_id: int) -> dict:
     return announcement_json
 
 
-def delete_announcement(announcement_id: int) -> dict:
+def delete_announcement(announcement_id: int, user_id: int) -> dict:
     """
     This function deletes an announcement from a user.
 

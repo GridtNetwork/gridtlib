@@ -8,10 +8,11 @@ class UnitTestAnnouncmentModel(BaseTest):
     
     def test_init(self):
         movement = self.create_movement()
+        user = self.create_user()
         message = "This is a dummy announcement, Hello World!"
 
         with freeze_time("2023-02-20 14:00:00"):
-            announcement = Announcement(movement, message)
+            announcement = Announcement(movement, message, user)
 
         self.session.add(announcement)
         self.session.commit()
@@ -22,18 +23,20 @@ class UnitTestAnnouncmentModel(BaseTest):
 
     def test_str(self):
         movement = self.create_movement()
+        user = self.create_user()
         message = "This is a dummy announcement, Hello World!"
-        announcement = Announcement(movement, message)
+        announcement = Announcement(movement, message, user)
         self.session.add(announcement)
         self.session.commit()
         self.assertEqual(str(announcement), f"Announcement for movement 1: {message}")
     
     def test_to_json(self):
         movement = self.create_movement()
+        user = self.create_user()
         message = "This is a dummy announcement, Hello World!"
 
         with freeze_time("2023-02-25 16:00:00"):
-            announcement = Announcement(movement, message)
+            announcement = Announcement(movement, message, user)
         
         self.session.add(announcement)
         self.session.commit()
@@ -51,8 +54,9 @@ class UnitTestAnnouncmentModel(BaseTest):
 
     def test_update_message(self):
         movement = self.create_movement()
+        user = self.create_user()
         message = "This is a dummy announcement, Hello World!"
-        announcement = Announcement(movement, message)
+        announcement = Announcement(movement, message, user)
 
         with freeze_time("2023-02-25 20:00:00"):
             announcement.update_message("This is an announcement, Hello!")
@@ -62,8 +66,9 @@ class UnitTestAnnouncmentModel(BaseTest):
 
     def test_remove(self):
         movement = self.create_movement()
+        user = self.create_user()
         message = "This is a dummy announcement, Hello World!"
-        announcement = Announcement(movement, message)
+        announcement = Announcement(movement, message, user)
 
         with freeze_time("2023-02-25 20:00:00"):
             announcement.remove()
