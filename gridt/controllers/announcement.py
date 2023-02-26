@@ -1,14 +1,3 @@
-"""TODO
- - User should be saved in announcement
- - 
-
-Random ass decisions I made:
- - A user does not need to be subscribed to get announcements of a movement through the API
- - Deleted Announcements are kept in the database
- - We are saving the time an announcement was last updated (but this isn't used for sorting)
- - Anyone can update an announcement aslong as they are an admin (they don't have to be the poster of the original)
- - Anyone can delete an announcement as long as they are an admin (they don't have to be the poster of the original)
-"""
 from .helpers import (
     session_scope,
     load_movement,
@@ -50,6 +39,7 @@ def update_announcement(message: str, announcement_id: int, user_id: int) -> dic
     Args:
         message (str): The new message that should replace the old annoucement text.
         announcement_id (int): The id of the announcement that should be updated.
+        user_id (int): The user updating the announcement
 
     Returns:
         dict: The JSON representation of the announcement before update
@@ -74,6 +64,7 @@ def delete_announcement(announcement_id: int, user_id: int) -> dict:
 
     Args:
         announcement_id (int): The id of the announcment that has been deleted.
+        user_id (int): The user deleting the announcement
 
     Returns:
         dict: The announcement that has just been deleted in json.
@@ -120,13 +111,12 @@ def add_json_announcement_details(json: dict, movement, session) -> None:
         movement (Movement): The movement 
         session (Session): The sqlAlchemy session to use
     """
-    try:
-        announcement = session.query(Announcement).filter(
-            Announcement.movement_id == movement.id,
-            Announcement.removed_time.is_(None)
-        ).order_by(Announcement.created_time.desc()).one()
-    except:
-        json['last_announcement'] = None
-        return 
+    announcement = session.query(Announcement).filter(
+        Announcement.movement_id == movement.id,
+        Announcement.removed_time.is_(None)
+    ).order_by(Announcement.created_time.desc()).first()
 
-    json['last_announcement'] = announcement.to_json()
+    if announcement:
+        json['last_announcement'] = announcement.to_json()
+    else:
+        json['last_announcement'] = None
