@@ -10,6 +10,7 @@ from gridt.controllers.announcement import (
 from gridt.controllers.user import (
     register,
     verify_password_for_email,
+    get_identity
 )
 from gridt.controllers.creation import new_movement_by_user
 from gridt.controllers.movements import get_movement
@@ -34,6 +35,7 @@ class UnitTestsAnnouncementController(BaseTest):
         expected = {
             "id": 1,
             "movement_id": movement_id,
+            "poster": user.to_json(),
             "message": message,
             "created_time": datetime(2023, 2, 25, 16, 30, 0),
             "updated_time": None
@@ -161,6 +163,8 @@ class TestUserStoriesAnnouncementController(BaseTest):
         """
         register('Antonin', 'antonin.thioux@gmail.com', 'password123')
         antonin_id = verify_password_for_email('antonin.thioux@gmail.com', 'password123')
+        antonin_json = get_identity(antonin_id)
+        del antonin_json['email']  # Email should be private
 
         with freeze_time("2023-02-25 12:00:00"):
             movement_json = new_movement_by_user(antonin_id, "Floss daily", 'daily')['movement']
@@ -187,6 +191,7 @@ class TestUserStoriesAnnouncementController(BaseTest):
             'id': welcome_id,
             'movement_id': m_id,
             'message': welcome_message,
+            'poster': antonin_json,
             'created_time': datetime(2023, 2, 25, 13, 0),
             'updated_time': datetime(2023, 2, 25, 15, 0)
         }
@@ -221,6 +226,7 @@ class TestUserStoriesAnnouncementController(BaseTest):
             'id': info_id,
             'movement_id': m_id,
             'message': info_message,
+            'poster': antonin_json,
             'created_time': datetime(2023, 2, 25, 13, 30),
             'updated_time': datetime(2023, 2, 26, 14, 5)
         }
@@ -228,6 +234,7 @@ class TestUserStoriesAnnouncementController(BaseTest):
             'id': habit_id,
             'movement_id': m_id,
             'message': habit_message + "!",
+            'poster': antonin_json,
             'created_time': datetime(2023, 2, 26, 14, 0),
             'updated_time': datetime(2023, 2, 26, 14, 5)
         }

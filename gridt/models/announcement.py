@@ -54,6 +54,7 @@ class Announcement(Base):
         return {
             "id": self.id,
             "movement_id": self.movement_id,
+            "poster": self.poster.to_json(),
             "message": self.message,
             "created_time": self.created_time,
             "updated_time": self.updated_time

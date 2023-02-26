@@ -47,6 +47,7 @@ class UnitTestAnnouncmentModel(BaseTest):
         self.assertDictEqual(announcement.to_json(), {
             "id": announcement_id,
             "movement_id": movement_id,
+            "poster": user.to_json(),
             "message": message,
             "created_time": datetime(2023, 2, 25, 16, 0),
             "updated_time": None
