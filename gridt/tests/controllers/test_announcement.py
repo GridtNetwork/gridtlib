@@ -7,6 +7,12 @@ from gridt.controllers.announcement import (
     get_announcements,
     add_json_announcement_details
 )
+from gridt.controllers.user import (
+    register,
+    verify_password_for_email,
+)
+from gridt.controllers.creation import new_movement_by_user
+from gridt.controllers.movements import get_movement
 
 from gridt.models import Announcement
 
@@ -118,30 +124,190 @@ class TestUserStoriesAnnouncementController(BaseTest):
     These user stories should be updated once roles are implemented.
     """
 
-    @skip
     def test_make_movement_announcements(self):
         """
         As an administrator I would like to be able to make a announcements for movements.
         """
-        pass
+        register('Antonin', 'antonin.thioux@gmail.com', 'password123')
+        antonin_id = verify_password_for_email('antonin.thioux@gmail.com', 'password123')
 
-    @skip
+        with freeze_time("2023-02-25 12:00:00"):
+            movement_1_json = new_movement_by_user(antonin_id, "Meditate everyday", 'daily')['movement']
+            movement_2_json = new_movement_by_user(antonin_id, "Run once a week", 'weekly')['movement']
+        
+        m1_id, m2_id = movement_1_json['id'], movement_2_json['id']
+
+        with freeze_time("2023-02-26 11:00:00"):
+            a1_json = create_announcement("Welcome to the meditate everyday movement! Namaste.", m1_id, antonin_id)
+
+        self.assertDictEqual(a1_json, get_movement(m1_id, antonin_id)['last_announcement'])
+        self.assertIsNone(get_movement(m2_id, antonin_id)['last_announcement'])
+
+        with freeze_time("2023-02-26 12:00:00"):
+            a2_json = create_announcement("Welcome to run once a week movement!", m2_id, antonin_id)
+            a3_json = create_announcement(
+                "New research shows that only 17 minutes of mediation a day gives benefits",
+                 m1_id,
+                 antonin_id
+            )
+
+        self.assertDictEqual(a3_json, get_movement(m1_id, antonin_id)['last_announcement'])
+        self.assertDictEqual(a2_json, get_movement(m2_id, antonin_id)['last_announcement'])
+        self.assertEqual(3, self.session.query(Announcement).filter(Announcement.poster_id == antonin_id).count())
+
     def test_update_movement_announcements(self):
         """
         As an administrator I would like to be able to update announcements
         """
-        pass
+        register('Antonin', 'antonin.thioux@gmail.com', 'password123')
+        antonin_id = verify_password_for_email('antonin.thioux@gmail.com', 'password123')
 
-    @skip
+        with freeze_time("2023-02-25 12:00:00"):
+            movement_json = new_movement_by_user(antonin_id, "Floss daily", 'daily')['movement']
+
+        m_id = movement_json['id']
+
+        with freeze_time("2023-02-25 13:00:00"):
+            welcome_message = "Welcome to the new movement!"
+            welcome_announcement_json = create_announcement(welcome_message, m_id, antonin_id)
+            welcome_id = welcome_announcement_json['id']
+        with freeze_time("2023-02-25 13:30:00"):
+            info_message = "Find out more information on flossing"
+            info_announcement_json = create_announcement(info_message, m_id, antonin_id)
+            info_id = info_announcement_json['id']
+        with freeze_time("2023-02-25 15:00:00"):
+            welcome_message += "\nFollow us on FaceBook!"
+            self.assertDictEqual(
+                welcome_announcement_json,
+                update_announcement(welcome_message, welcome_id, antonin_id),
+                "Update announcement should return the json representation before the update"
+            )
+        
+        expected_welcome_json = {
+            'id': welcome_id,
+            'movement_id': m_id,
+            'message': welcome_message,
+            'created_time': datetime(2023, 2, 25, 13, 0),
+            'updated_time': datetime(2023, 2, 25, 15, 0)
+        }
+        self.assertEqual(
+            expected_welcome_json,
+            self.session.query(Announcement).filter(Announcement.id == welcome_id).one().to_json()
+        )
+        self.assertEqual(
+            info_announcement_json,
+            self.session.query(Announcement).filter(Announcement.id == info_id).one().to_json()
+        )
+
+        with freeze_time("2023-02-26 14:00:00"):
+            habit_message = "motivation is what gets you started. habit is what keeps you going"
+            habit_announcement_json = create_announcement(habit_message, m_id, antonin_id)
+            habit_id = habit_announcement_json['id']
+        with freeze_time("2023-02-26 14:05:00"):
+            habit_message = "Motivation is what gets you started, habit is what keeps you going"
+            self.assertDictEqual(
+                habit_announcement_json,
+                update_announcement(habit_message, habit_id, antonin_id),
+                "Update announcement should return the json representation before the update"
+            )
+            update_announcement(habit_message + "!", habit_id, antonin_id)
+            info_message += " on our facebook page!"
+            self.assertDictEqual(
+                info_announcement_json,
+                update_announcement(info_message, info_id, antonin_id),
+                "Update announcement should return the json representation before the update"
+            )
+        expected_info_json = {
+            'id': info_id,
+            'movement_id': m_id,
+            'message': info_message,
+            'created_time': datetime(2023, 2, 25, 13, 30),
+            'updated_time': datetime(2023, 2, 26, 14, 5)
+        }
+        expected_habit_json = {
+            'id': habit_id,
+            'movement_id': m_id,
+            'message': habit_message + "!",
+            'created_time': datetime(2023, 2, 26, 14, 0),
+            'updated_time': datetime(2023, 2, 26, 14, 5)
+        }
+        self.assertDictEqual(
+            expected_welcome_json,
+            self.session.query(Announcement).filter(Announcement.id == welcome_id).one().to_json()
+        )
+        self.assertDictEqual(
+            expected_info_json,
+            self.session.query(Announcement).filter(Announcement.id == info_id).one().to_json()
+        )
+        self.assertDictEqual(
+            expected_habit_json,
+            self.session.query(Announcement).filter(Announcement.id == habit_id).one().to_json()
+        )
+
     def test_delete_movement_announcements(self):
         """
         As an administrator I would like to be able to delete announcements
         """
-        pass
+        register('Antonin', 'antonin.thioux@gmail.com', 'password123')
+        antonin_id = verify_password_for_email('antonin.thioux@gmail.com', 'password123')
+
+        with freeze_time("2023-02-25 12:00:00"):
+            movement_1_json = new_movement_by_user(antonin_id, "Floss daily", 'daily')['movement']
+            movement_2_json = new_movement_by_user(antonin_id, "Run once a week", 'weekly')['movement']
+
+        m1_id, m2_id = movement_1_json['id'], movement_2_json['id']
+
+        with freeze_time("2023-02-25 13:00:00"):
+            welcome_message = "Welcome to the new movement!"
+            welcome1_announcement_json = create_announcement(welcome_message, m1_id, antonin_id)
+            welcome2_announcement_json = create_announcement(welcome_message, m2_id, antonin_id)
+            welcome1_id = welcome1_announcement_json['id']
+
+        with freeze_time("2023-02-25 14:00:00"):
+            wrong_chat_message = "We can use chatGPT to write the assignment UwU"
+            wrong_announcement_json = create_announcement(wrong_chat_message, m1_id, antonin_id)
+            wrong_id = wrong_announcement_json['id']
+
+        with freeze_time("2023-02-26 14:30:00"):
+            self.assertDictEqual(
+                welcome1_announcement_json,
+                delete_announcement(welcome1_id, antonin_id),
+                "Delete announcement should return the json of the announcement before deletion"
+            )
+            self.assertDictEqual(
+                wrong_announcement_json,
+                delete_announcement(wrong_id, antonin_id),
+                "Delete announcement should return the json of the announcement before deletion"
+            )
+        
+        self.assertIsNone(get_movement(m1_id, antonin_id)['last_announcement'])
+        self.assertListEqual([], get_announcements(m1_id))
+        self.assertDictEqual(welcome2_announcement_json, get_movement(m2_id, antonin_id)['last_announcement'])
+        self.assertListEqual([welcome2_announcement_json], get_announcements(m2_id))
     
-    @skip
     def test_view_announcements(self):
         """
         As a subscriber to a movement I would like to be able to view the movement's announcements
         """
-        pass
+        register('Antonin', 'antonin.thioux@gmail.com', 'password123')
+        antonin_id = verify_password_for_email('antonin.thioux@gmail.com', 'password123')
+
+        with freeze_time("2023-02-25 12:00:00"):
+            movement_1_json = new_movement_by_user(antonin_id, "Meditate everyday", 'daily')['movement']
+            movement_2_json = new_movement_by_user(antonin_id, "Run once a week", 'weekly')['movement']
+        
+        m1_id, m2_id = movement_1_json['id'], movement_2_json['id']
+
+        with freeze_time("2023-02-26 11:00:00"):
+            a1_json = create_announcement("Welcome to the meditate everyday movement! Namaste.", m1_id, antonin_id)
+        with freeze_time("2023-02-26 14:00:00"):
+            a2_json = create_announcement("Find out which meditation practice works best for you", m1_id, antonin_id)
+        with freeze_time("2023-02-26 15:00:00"):
+            a3_json = create_announcement("Watch our HD meditation videos on YouTube!", m1_id, antonin_id)
+        with freeze_time("2023-02-26 16:00:00"):
+            a4_json = create_announcement("Happiness comes from within, Buy our new merch!", m1_id, antonin_id)
+
+        self.assertListEqual([a4_json, a3_json, a2_json, a1_json], get_announcements(m1_id))
+        self.assertDictEqual(a4_json, get_movement(m1_id, antonin_id)['last_announcement'])
+        self.assertListEqual([], get_announcements(m2_id))
+        self.assertIsNone(get_movement(m2_id, antonin_id)['last_announcement'])
