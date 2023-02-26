@@ -12,3 +12,7 @@ class SubscriptionNotFoundError(Exception):
 
 class UserIsNotCreator(Exception):
     pass
+
+
+class AnnouncementNotFoundError(Exception):
+    pass

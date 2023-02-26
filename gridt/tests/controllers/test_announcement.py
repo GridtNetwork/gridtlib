@@ -5,7 +5,8 @@ from gridt.controllers.announcement import (
     update_announcement,
     delete_announcement,
     get_announcements,
-    add_json_announcement_details
+    add_json_announcement_details,
+    _get_announcement
 )
 from gridt.controllers.user import (
     register,
@@ -14,10 +15,10 @@ from gridt.controllers.user import (
 )
 from gridt.controllers.creation import new_movement_by_user
 from gridt.controllers.movements import get_movement
+from gridt.controllers.helpers import GridtExceptions as E
 
 from gridt.models import Announcement
 
-from unittest import skip
 from freezegun import freeze_time
 
 from datetime import datetime
@@ -41,6 +42,12 @@ class UnitTestsAnnouncementController(BaseTest):
             "updated_time": None
         }
 
+        # Check errors
+        with self.assertRaises(E.MovementNotFoundError):
+            create_announcement(movement_id=movement_id+1, message=message, user_id=user_id)
+        with self.assertRaises(E.UserNotFoundError):
+            create_announcement(movement_id=movement_id, message=message, user_id=user_id+1)
+
         with freeze_time("2023-02-25 16:30:00"):
             announcement_json = create_announcement(movement_id=movement_id, message=message, user_id=user_id)
 
@@ -57,10 +64,17 @@ class UnitTestsAnnouncementController(BaseTest):
         self.session.commit()
 
         announcement_id = announcement.id
+        user_id = user.id
         expected = announcement.to_json()
 
+        # Check errors
+        with self.assertRaises(E.UserNotFoundError):
+            update_announcement("", announcement_id, user_id+1)
+        with self.assertRaises(E.AnnouncementNotFoundError):
+            update_announcement("", announcement_id+1, user_id)
+
         with freeze_time("2023-02-25 16:30"):
-            announcement_json = update_announcement("Hello, this is a new announcement", announcement_id, user.id)
+            announcement_json = update_announcement("Hello, this is a new announcement", announcement_id, user_id)
 
         self.assertDictEqual(announcement_json, expected)
 
@@ -78,14 +92,41 @@ class UnitTestsAnnouncementController(BaseTest):
         self.session.commit()
 
         expected_json = announcement.to_json()
+        announcement_id = announcement.id
+        user_id = user.id
+
+        # Check errors
+        with self.assertRaises(E.UserNotFoundError):
+            delete_announcement(announcement_id, user_id+1)
+        with self.assertRaises(E.AnnouncementNotFoundError):
+            delete_announcement(announcement_id+1, user_id)
 
         with freeze_time("2023-02-25 21:00:00"):
-            announcement_json = delete_announcement(announcement.id, user.id)
+            announcement_json = delete_announcement(announcement_id, user_id)
 
         self.assertDictEqual(announcement_json, expected_json)
         self.assertEqual(1, self.session.query(Announcement).filter(
             Announcement.removed_time == datetime(2023, 2, 25, 21, 0, 0)
         ).count())
+
+    def test_get_announcement(self):
+        movement = self.create_movement()
+        user = self.create_user()
+        with freeze_time("2023-02-25 18:30:00"):
+            announcement = Announcement(movement, "Welcome to the movement!", user)
+        self.session.add(announcement)
+        self.session.commit()
+
+        announcement_id = announcement.id
+
+        # Check the error
+        with self.assertRaises(E.AnnouncementNotFoundError):
+            _get_announcement(announcement_id + 1, self.session)
+
+        self.assertEqual(
+            self.session.query(Announcement).get(announcement_id),
+            _get_announcement(announcement_id, self.session)
+        )
 
     def test_get_announcements(self):
         movement = self.create_movement()

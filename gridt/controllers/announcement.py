@@ -1,10 +1,14 @@
 from .helpers import (
     session_scope,
     load_movement,
-    load_user
+    load_user,
+    GridtExceptions
 )
 
 from gridt.models import Announcement
+
+from sqlalchemy.orm.session import Session
+from sqlalchemy.exc import NoResultFound
 
 def create_announcement(message: str, movement_id: int, user_id: int) -> dict:
     """
@@ -32,6 +36,29 @@ def create_announcement(message: str, movement_id: int, user_id: int) -> dict:
     return announcement_json
 
 
+def _get_announcement(announcement_id: int, session: Session) -> Announcement:
+    """
+    This is a helper function get an announcement in the database
+
+    Args:
+        announcement_id (int): The id of the announcement in question
+        session (Session): The sqlAlchemy session that should be used
+
+    Raises:
+        GridtExceptions.AnnouncementNotFoundError: If the announcement does not exist
+
+    Returns:
+        Announcement: The announcement object 
+    """
+    try:
+        return session.query(Announcement).filter(
+            Announcement.id == announcement_id,
+            Announcement.removed_time.is_(None)
+        ).one()
+    except NoResultFound:
+        raise GridtExceptions.AnnouncementNotFoundError
+
+
 def update_announcement(message: str, announcement_id: int, user_id: int) -> dict:
     """
     This function updates an announcement from user.
@@ -48,10 +75,8 @@ def update_announcement(message: str, announcement_id: int, user_id: int) -> dic
         Check that the user is an admin here!
     """
     with session_scope() as session:
-        announcement = session.query(Announcement).filter(
-            Announcement.id == announcement_id,
-            Announcement.removed_time.is_(None)
-        ).one()
+        load_user(user_id, session)
+        announcement = _get_announcement(announcement_id, session)
         announcement_json = announcement.to_json()
         announcement.update_message(message)
 
@@ -73,9 +98,8 @@ def delete_announcement(announcement_id: int, user_id: int) -> dict:
         Check that the user is an admin here!
     """
     with session_scope() as session:
-        announcement = session.query(Announcement).filter(
-            Announcement.id == announcement_id
-        ).one()
+        load_user(user_id, session)
+        announcement = _get_announcement(announcement_id, session)
         announcement_json = announcement.to_json()
         announcement.remove()
 
@@ -102,7 +126,7 @@ def get_announcements(movement_id: int) -> list:
     return announcements_jsons
 
 
-def add_json_announcement_details(json: dict, movement, session) -> None:
+def add_json_announcement_details(json: dict, movement, session: Session) -> None:
     """
     This function adds the latest announcement details for a movement
 
