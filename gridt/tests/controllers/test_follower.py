@@ -376,16 +376,17 @@ class GetLeaderTest(BaseTest):
         m1_id = movement1.id
         m2_id = movement2.id
 
-        with freeze_time("1995-01-15 12:00:00+01:00", tz_offset=1):
+        earlier = datetime(1995, 1, 15, 12)
+        later = datetime(1996, 3, 15, 12)
+        with freeze_time(earlier):
             send_signal(l1_id, m1_id, "Message1")
             send_signal(l1_id, m2_id, "Message2")
             send_signal(l2_id, m1_id, "Message3")
-        with freeze_time("1996-03-15 12:00:00+01:00", tz_offset=1):
+        with freeze_time(later):
             send_signal(l1_id, m1_id, "Message4")
 
-        leader = get_leader(f_id, m1_id, l1_id)
-        self.assertEqual(
-            leader,
+        self.assertDictEqual(
+            get_leader(f_id, m1_id, l1_id),
             {
                 "id": l1_id,
                 "bio": "",
@@ -394,11 +395,11 @@ class GetLeaderTest(BaseTest):
                 "message_history": [
                     {
                         "message": "Message4",
-                        "time_stamp": "1996-03-15 12:00:00+01:00",
+                        "time_stamp": str(later.astimezone()),
                     },
                     {
                         "message": "Message1",
-                        "time_stamp": "1995-01-15 12:00:00+01:00",
+                        "time_stamp": str(earlier.astimezone()),
                     },
                 ],
             },
