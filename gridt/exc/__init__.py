@@ -5,6 +5,7 @@ from .load_errors import (
     SubscriptionNotFoundError,
     UserIsNotCreator,
     AnnouncementNotFoundError,
+    UserNotAdmin,
 )
 
 __all__ = [
@@ -13,4 +14,5 @@ __all__ = [
     'SubscriptionNotFoundError',
     'UserIsNotCreator',
     'AnnouncementNotFoundError',
+    'UserNotAdmin',
 ]

@@ -27,7 +27,7 @@ class UnitTestsAnnouncementController(BaseTest):
 
     def test_create_announcement(self):
         movement = self.create_movement()
-        user = self.create_user()
+        user = self.create_user(is_admin=True)
         self.session.commit()
 
         movement_id = movement.id
@@ -55,7 +55,7 @@ class UnitTestsAnnouncementController(BaseTest):
 
     def test_update_announcement(self):
         movement = self.create_movement()
-        user = self.create_user()
+        user = self.create_user(is_admin=True)
 
         with freeze_time("2023-02-25 17:00:00"):
             announcement = Announcement(movement, "Hello, this is new annoucement", user)
@@ -83,7 +83,7 @@ class UnitTestsAnnouncementController(BaseTest):
         
     def test_delete_announcement(self):
         movement = self.create_movement()
-        user = self.create_user()
+        user = self.create_user(is_admin=True)
         announcement = Announcement(movement, "Hello, this is a new announcement", user)
         self.session.add(announcement)
         self.session.commit()
@@ -158,7 +158,6 @@ class UnitTestsAnnouncementController(BaseTest):
 
 class TestUserStoriesAnnouncementController(BaseTest):
     """
-    TODO: Some of the User Stories should be for admins only.
     These user stories should be updated once roles are implemented.
     """
 
@@ -166,7 +165,7 @@ class TestUserStoriesAnnouncementController(BaseTest):
         """
         As an administrator I would like to be able to make a announcements for movements.
         """
-        register('Antonin', 'antonin.thioux@gmail.com', 'password123')
+        register('Antonin', 'antonin.thioux@gmail.com', 'password123', True)
         antonin_id = verify_password_for_email('antonin.thioux@gmail.com', 'password123')
 
         with freeze_time("2023-02-25 12:00:00"):
@@ -197,7 +196,7 @@ class TestUserStoriesAnnouncementController(BaseTest):
         """
         As an administrator I would like to be able to update announcements
         """
-        register('Antonin', 'antonin.thioux@gmail.com', 'password123')
+        register('Antonin', 'antonin.thioux@gmail.com', 'password123', True)
         antonin_id = verify_password_for_email('antonin.thioux@gmail.com', 'password123')
         antonin_json = get_identity(antonin_id)
         del antonin_json['email']  # Email should be private
@@ -280,7 +279,7 @@ class TestUserStoriesAnnouncementController(BaseTest):
         """
         As an administrator I would like to be able to delete announcements
         """
-        register('Antonin', 'antonin.thioux@gmail.com', 'password123')
+        register('Antonin', 'antonin.thioux@gmail.com', 'password123', True)
         antonin_id = verify_password_for_email('antonin.thioux@gmail.com', 'password123')
 
         with freeze_time("2023-02-25 12:00:00"):
@@ -313,7 +312,7 @@ class TestUserStoriesAnnouncementController(BaseTest):
         """
         As a subscriber to a movement I would like to be able to view the movement's announcements
         """
-        register('Antonin', 'antonin.thioux@gmail.com', 'password123')
+        register('Antonin', 'antonin.thioux@gmail.com', 'password123', True)
         antonin_id = verify_password_for_email('antonin.thioux@gmail.com', 'password123')
 
         with freeze_time("2023-02-25 12:00:00"):

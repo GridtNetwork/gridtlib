@@ -4,7 +4,8 @@ from .helpers import (
     session_scope,
     load_movement,
     load_user,
-    GridtExceptions
+    GridtExceptions,
+    assert_user_is_admin,
 )
 
 from sqlalchemy.orm.query import Query
@@ -84,6 +85,7 @@ def new_movement_by_user(
     movement_id = movement_json['id']
 
     with session_scope() as session:
+        assert_user_is_admin(user_id, session)
         user = load_user(user_id, session)
         movement = load_movement(movement_id, session)
         creation = Creation(user, movement)
