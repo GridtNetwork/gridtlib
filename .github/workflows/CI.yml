@@ -1,10 +1,14 @@
 name: Python Test
 
 on:
+  push:
+    branches:
+      - master
+      - development
   pull_request:
     branches:
       - master
-      - development-SME
+      - development
 
 jobs:
   test:
