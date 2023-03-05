@@ -23,6 +23,12 @@ def session_scope():
         session.close()
 
 
+def assert_user_is_admin(user_id: int, session: Session) -> None:
+    user = load_user(user_id, session)
+    if not user.is_admin:
+        raise GridtExceptions.UserNotAdmin(f"User '{user_id}' not an admin")
+
+
 def load_user(user_id: int, session: Session) -> User:
     """Load a user from the database."""
     user = session.query(User).get(user_id)

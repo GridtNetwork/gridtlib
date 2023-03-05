@@ -16,3 +16,7 @@ class UserIsNotCreator(Exception):
 
 class AnnouncementNotFoundError(Exception):
     pass
+
+
+class UserNotAdmin(Exception):
+    pass

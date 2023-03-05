@@ -31,7 +31,7 @@ class BaseTest(TestCase):
         self.session.close()
         Base.metadata.create_all(self.engine)
 
-    def create_user(self, generate_bio=False):
+    def create_user(self, generate_bio=False, is_admin=False):
         """Create a user in the database."""
         # Usually in tests we number the users, when outputting it is useful to
         # know which user is being represented.
@@ -46,7 +46,7 @@ class BaseTest(TestCase):
         if generate_bio:
             bio = lorem.paragraph()
 
-        user = User(username, email, password, role="user", bio=bio)
+        user = User(username, email, password, is_admin, bio=bio)
         self.session.add(user)
         return user
 

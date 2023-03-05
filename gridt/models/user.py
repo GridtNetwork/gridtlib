@@ -1,6 +1,6 @@
 import datetime
 import jwt
-from sqlalchemy import Column, Integer, String, UnicodeText
+from sqlalchemy import Column, Integer, String, UnicodeText, Boolean
 
 from passlib.apps import custom_app_context as pwd_context
 import hashlib
@@ -29,14 +29,14 @@ class User(Base):
     username = Column(String(32))
     email = Column(String(40), unique=True, nullable=False)
     password_hash = Column(String(128))
-    role = Column(String(32))
+    is_admin = Column(Boolean())
     bio = Column(UnicodeText)
 
-    def __init__(self, username, email, password, role="user", bio=""):
+    def __init__(self, username, email, password, is_admin=False, bio=""):
         self.username = username
         self.email = email
         self.hash_and_store_password(password)
-        self.role = role
+        self.is_admin = is_admin
         self.bio = bio
 
     def __repr__(self):

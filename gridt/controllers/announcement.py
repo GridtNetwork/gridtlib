@@ -2,7 +2,8 @@ from .helpers import (
     session_scope,
     load_movement,
     load_user,
-    GridtExceptions
+    GridtExceptions,
+    assert_user_is_admin,
 )
 
 from gridt.models import Announcement
@@ -21,11 +22,10 @@ def create_announcement(message: str, movement_id: int, user_id: int) -> dict:
 
     Returns:
         dict: The JSON representation of the new announcement
-    
-    TODO:
-        Check that the user is an admin here!
     """
+
     with session_scope() as session:
+        assert_user_is_admin(user_id, session)
         movement = load_movement(movement_id, session)
         user = load_user(user_id, session)
         announcement = Announcement(movement=movement, message=message, user=user)
@@ -67,11 +67,9 @@ def update_announcement(message: str, announcement_id: int, user_id: int) -> Non
         message (str): The new message that should replace the old annoucement text.
         announcement_id (int): The id of the announcement that should be updated.
         user_id (int): The user updating the announcement
-
-    TODO:
-        Check that the user is an admin here!
     """
     with session_scope() as session:
+        assert_user_is_admin(user_id, session)
         load_user(user_id, session)
         announcement = _get_announcement(announcement_id, session)
         announcement.update_message(message)
@@ -84,11 +82,9 @@ def delete_announcement(announcement_id: int, user_id: int) -> None:
     Args:
         announcement_id (int): The id of the announcment that has been deleted.
         user_id (int): The user deleting the announcement
-
-    TODO:
-        Check that the user is an admin here!
     """
     with session_scope() as session:
+        assert_user_is_admin(user_id, session)
         load_user(user_id, session)
         announcement = _get_announcement(announcement_id, session)
         announcement.remove()
