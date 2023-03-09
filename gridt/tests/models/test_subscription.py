@@ -8,7 +8,6 @@ from datetime import datetime
 class UnitTestSubscription(BaseTest):
 
     def test_init(self):
-        subscription1 = None
         with freeze_time('2022-12-27 03:10:00'):
             subscription1 = Subscription()
 
@@ -20,7 +19,6 @@ class UnitTestSubscription(BaseTest):
         user = self.create_user()
         movement = self.create_movement()
 
-        subscription2 = None
         with freeze_time('2022-12-27 01:54:00'):
             subscription2 = Subscription(user, movement)
         

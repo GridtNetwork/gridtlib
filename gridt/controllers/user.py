@@ -118,5 +118,5 @@ def register(username: str, email: str, password: str, is_admin=False):
 
 def get_identity(user_id: int):
     with session_scope() as session:
-        user = session.query(User).get(user_id)
+        user = session.get(User, user_id)
         return user.to_json(include_email=True)

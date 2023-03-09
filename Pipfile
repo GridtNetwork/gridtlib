@@ -5,7 +5,7 @@ verify_ssl = true
 
 [dev-packages]
 pylint = "*"
-flake8 = "*"
+flake8 = "5.0.4"
 freezegun = "*"
 flake8-docstrings = "*"
 lorem = "*"
