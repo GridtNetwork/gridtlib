@@ -38,7 +38,7 @@ class UnitTestsAnnouncementController(BaseTest):
             "movement_id": movement_id,
             "poster": user.to_json(),
             "message": message,
-            "created_time": datetime(2023, 2, 25, 16, 30, 0),
+            "created_time": str(datetime(2023, 2, 25, 16, 30, 0).astimezone()),
             "updated_time": None
         }
 
@@ -119,7 +119,7 @@ class UnitTestsAnnouncementController(BaseTest):
             _get_announcement(announcement_id + 1, self.session)
 
         self.assertEqual(
-            self.session.query(Announcement).get(announcement_id),
+            self.session.get(Announcement, announcement_id),
             _get_announcement(announcement_id, self.session)
         )
 
@@ -223,8 +223,8 @@ class TestUserStoriesAnnouncementController(BaseTest):
             'movement_id': m_id,
             'message': welcome_message,
             'poster': antonin_json,
-            'created_time': datetime(2023, 2, 25, 13, 0),
-            'updated_time': datetime(2023, 2, 25, 15, 0)
+            'created_time': str(datetime(2023, 2, 25, 13, 0).astimezone()),
+            'updated_time': str(datetime(2023, 2, 25, 15, 0).astimezone())
         }
         self.assertEqual(
             expected_welcome_json,
@@ -251,16 +251,16 @@ class TestUserStoriesAnnouncementController(BaseTest):
             'movement_id': m_id,
             'message': info_message,
             'poster': antonin_json,
-            'created_time': datetime(2023, 2, 25, 13, 30),
-            'updated_time': datetime(2023, 2, 26, 14, 5)
+            'created_time': str(datetime(2023, 2, 25, 13, 30).astimezone()),
+            'updated_time': str(datetime(2023, 2, 26, 14, 5).astimezone())
         }
         expected_habit_json = {
             'id': habit_id,
             'movement_id': m_id,
             'message': habit_message + "!",
             'poster': antonin_json,
-            'created_time': datetime(2023, 2, 26, 14, 0),
-            'updated_time': datetime(2023, 2, 26, 14, 5)
+            'created_time': str(datetime(2023, 2, 26, 14, 0).astimezone()),
+            'updated_time': str(datetime(2023, 2, 26, 14, 5).astimezone())
         }
         self.assertDictEqual(
             expected_welcome_json,

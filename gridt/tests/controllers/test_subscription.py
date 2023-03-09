@@ -183,11 +183,10 @@ class SubscriptionControllerIntergrationTests(BaseTest):
             json_2 = new_subscription(andrei_id, movement_1_id)
 
         self.assertDictEqual(json_1['user'], antonin_json, 'Note that the email should be private')
-        self.assertEqual(json_1['time_started'], datetime(2023, 1, 6, 9, 0))
-        self.assertIsNone(json_1['time_ended'])
+        self.assertEqual(json_1['time_started'], str(datetime(2023, 1, 6, 9, 0).astimezone()))
         self.assertTrue(json_1['subscribed'])
         self.assertDictEqual(json_2['user'], andrei_json)
-        self.assertEqual(json_2['time_started'], datetime(2023, 1, 6, 9, 30))
+        self.assertEqual(json_2['time_started'], str(datetime(2023, 1, 6, 9, 30).astimezone()))
 
         self.assertTrue(is_subscribed(antonin_id, movement_1_id))
         self.assertTrue(is_subscribed(andrei_id, movement_1_id))
@@ -227,18 +226,15 @@ class SubscriptionControllerIntergrationTests(BaseTest):
             json1 = new_subscription(antonin_id, movement_id)
 
         self.assertDictEqual(json1['user'], antonin_json)
-        self.assertEqual(json1['time_started'], datetime(2023, 1, 6, 9, 0))
-        self.assertIsNone(json1['time_ended'])
+        self.assertEqual(json1['time_started'], str(datetime(2023, 1, 6, 9, 0).astimezone()))
         self.assertTrue(json1['subscribed'])
-
         self.assertTrue(is_subscribed(antonin_id, movement_id))
 
         with freeze_time("2023-01-06 10:00:00"):
             json2 = remove_subscription(antonin_id, movement_id)
         
         self.assertDictEqual(json2['user'], antonin_json)
-        self.assertEqual(json2['time_started'], datetime(2023, 1, 6, 9, 0))
-        self.assertEqual(json2['time_ended'], datetime(2023, 1, 6, 10, 0))
+        self.assertEqual(json2['time_started'], str(datetime(2023, 1, 6, 9, 0).astimezone()))
         self.assertFalse(json2['subscribed'])
 
         self.assertFalse(is_subscribed(antonin_id, movement_id))

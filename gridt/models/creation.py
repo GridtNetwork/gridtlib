@@ -40,6 +40,5 @@ class Creation(MovementUserRelation):
             "movement": self.movement.to_json(),
             "user": self.user.to_json(),
             "time_started": str(self.time_added.astimezone()),
-            "time_ended": str(self.time_removed.astimezone()),
             "created": not self.has_ended()
         }
