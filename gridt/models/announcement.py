@@ -56,8 +56,9 @@ class Announcement(Base):
             "movement_id": self.movement_id,
             "poster": self.poster.to_json(),
             "message": self.message,
-            "created_time": self.created_time,
-            "updated_time": self.updated_time
+            "created_time": str(self.created_time.astimezone()),
+            "updated_time": str(self.updated_time.astimezone()),
+            "removed_time": str(self.removed_time.astimezone())
         }
 
     def update_message(self, message: str):
