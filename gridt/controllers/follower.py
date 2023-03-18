@@ -1,8 +1,8 @@
+"""Controller for followers."""
 import random
 from operator import and_
 
 from sqlalchemy import desc
-from sqlalchemy.orm.query import Query
 from sqlalchemy import not_, func
 from sqlalchemy.orm.session import Session
 
@@ -21,7 +21,7 @@ MESSAGE_HISTORY_MAX_DEPTH = 3
 
 def add_initial_leaders(follower_id: int, movement_id: int) -> None:
     """
-    This function adds the initial leaders for a follower when the follower first joins the movement.
+    Add the initial leaders for a follower upon joining a movement.
 
     Args:
         follower_id (int): The id of the follower in the movement
@@ -43,8 +43,7 @@ def add_initial_leaders(follower_id: int, movement_id: int) -> None:
 
 def remove_all_leaders(follower_id: int, movement_id: int) -> None:
     """
-    This function removes all leaders from a follower when the follower leaves a movement.
-    It then tries to find new followers for the leaders.
+    Remove all leaders from a follower upon leaving a movement.
 
     Args:
         follower_id (int): The id of the follower in the movement.
@@ -71,7 +70,11 @@ def remove_all_leaders(follower_id: int, movement_id: int) -> None:
             if not user_to_user_link.leader:
                 continue
 
-            poss_followers = possible_followers(user_to_user_link.leader, user_to_user_link.movement, session)
+            poss_followers = possible_followers(
+                user=user_to_user_link.leader,
+                movement=user_to_user_link.movement,
+                session=session
+            )
             # Add new UserToUserLinks for each former leader.
             if poss_followers:
                 new_follower = random.choice(poss_followers)
@@ -90,9 +93,9 @@ def get_leaders(user: User, movement: Movement, session: Session) -> list:
     exclude from search.
     :returns: List object
     """
-    return [ user_to_user_link.leader for user_to_user_link in
-        session.query(UserToUserLink)
-        .filter(
+    return [
+        user_to_user_link.leader
+        for user_to_user_link in session.query(UserToUserLink).filter(
             UserToUserLink.follower_id == user.id,
             UserToUserLink.movement_id == movement.id,
             UserToUserLink.destroyed.is_(None)
@@ -202,6 +205,8 @@ def possible_followers(
         user: User, movement: Movement, session: Session
 ) -> list:
     """
+    Find possible followers for a user.
+
     Find the active users in this movement
     (movement.current_users) that have fewer than four leaders,
     excluding the current user or any of his followers.
@@ -214,13 +219,18 @@ def possible_followers(
     SUB = Subscription
 
     follower_ids = session.query(UserToUserLink.follower_id).filter(
-        UserToUserLink.movement_id == movement.id, UserToUserLink.leader_id == user.id, UserToUserLink.destroyed.is_(None)
+        UserToUserLink.movement_id == movement.id,
+        UserToUserLink.leader_id == user.id,
+        UserToUserLink.destroyed.is_(None)
     )
 
     potential_available_followers = (session.query(
         SUB,
         func.count(UserToUserLink.follower_id))
-        .outerjoin(UserToUserLink, and_(SUB.user_id == UserToUserLink.follower_id, movement.id == UserToUserLink.movement_id))
+        .outerjoin(UserToUserLink, and_(
+            SUB.user_id == UserToUserLink.follower_id,
+            movement.id == UserToUserLink.movement_id)
+        )
         .filter(
                 SUB.movement_id == movement.id,
                 not_(SUB.user_id == user.id),
@@ -229,4 +239,7 @@ def possible_followers(
                 )
         .group_by(SUB.user_id).all())
 
-    return [subscription.user for subscription, counts in potential_available_followers if counts < 4]
+    return [
+        subscription.user for subscription, counts
+        in potential_available_followers if counts < 4
+    ]

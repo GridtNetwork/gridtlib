@@ -1,5 +1,9 @@
+"""Controller for movement creation."""
 from gridt.models import Creation
-from gridt.controllers import subscription as Subscription, movements as Movements
+from gridt.controllers import (
+    subscription as Subscription,
+    movements as Movements
+)
 from .helpers import (
     session_scope,
     load_movement,
@@ -14,7 +18,7 @@ from sqlalchemy.orm.session import Session
 
 def _get_creation(user_id: int, movement_id: int, session: Session) -> Query:
     """
-    Helper function to get creation relation
+    Get creation relation between user and movement.
 
     Args:
         user_id (int): The id of the user
@@ -22,7 +26,7 @@ def _get_creation(user_id: int, movement_id: int, session: Session) -> Query:
         session (Session): The session to communicate with the DB
 
     Returns:
-        Query: A creation relation query 
+        Query: A creation relation query
     """
     creations = (
         session.query(Creation)
@@ -34,14 +38,18 @@ def _get_creation(user_id: int, movement_id: int, session: Session) -> Query:
     )
 
     if not creations.count():
-        raise GridtExceptions.UserIsNotCreator(f"User '{user_id}' has not created the Movement '{movement_id}'. Or one or both do not exist")
-    
+        raise GridtExceptions.UserIsNotCreator(
+            f"User '{user_id}' has not",
+            f"created the Movement '{movement_id}'.",
+            "Or one or both do not exist"
+        )
+
     return creations.one()
 
 
 def is_creator(user_id: int, movement_id: int) -> bool:
     """
-    Checks if a user is the creator of a movement
+    Check if a user is the creator of a movement.
 
     Args:
         user_id (int): The user id
@@ -68,20 +76,25 @@ def new_movement_by_user(
     auto_subscribe: bool = True
 ) -> dict:
     """
-    Creates a new movement by a user. With the given user as the creator.
+    Create a new movement by a user (as creator).
 
     Args:
         user_id (int): The id of the user creating the movement
         name (str): The name of the movement
         interval (str): The signal interval the new movement should have.
-        short_description (str, optional): Short summary of the new movement. Defaults to None.
-        description (str, optional): Optional more in depth description of the new movment. Defaults to None.
-        auto_subscribe (bool, optional): If true the user is automatically subscribed to the movement. Defaults to True.
+        short_description (str, optional): Short summary of the new movement.
+        description (str, optional): In depth description of the new movment.
+        auto_subscribe (bool, optional): The user is automatically subscribed.
 
     Returns:
         dict: json representation of the new creation
     """
-    movement_json = Movements.create_movement(name, interval, short_description, description)
+    movement_json = Movements.create_movement(
+        name=name,
+        interval=interval,
+        short_description=short_description,
+        description=description
+    )
     movement_id = movement_json['id']
 
     with session_scope() as session:
@@ -95,13 +108,13 @@ def new_movement_by_user(
 
     if auto_subscribe:
         Subscription.new_subscription(user_id, movement_id)
-    
+
     return creation_json
 
 
 def remove_creation(user_id: int, movement_id: int) -> dict:
     """
-    Ends a creation relation between a user and a movement.
+    End a creation relation between a user and a movement.
 
     Args:
         user_id (int): The id of the user

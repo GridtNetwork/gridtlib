@@ -1,3 +1,4 @@
+"""Controller for the leaders."""
 from .helpers import session_scope, load_movement, load_user
 from gridt.models import Signal, User, Movement
 from gridt.models import UserToUserLink
@@ -15,7 +16,7 @@ from sqlalchemy.orm.session import Session
 
 def add_initial_followers(leader_id: int, movement_id: int) -> None:
     """
-    This function adds the initial followers of a leader joining a movement
+    Add the initial followers for a leader upon joining a movement.
 
     Args:
         leader_id (int): The id of the leader who just joined the movement
@@ -26,14 +27,16 @@ def add_initial_followers(leader_id: int, movement_id: int) -> None:
         movement = load_movement(movement_id, session)
 
         # Give that new subscriber other followers to follow in the movement
-        for new_follower in Follower.possible_followers(user, movement, session):
-            user_to_user_link = UserToUserLink(movement, new_follower, leader=user)
+        new_followers = Follower.possible_followers(user, movement, session)
+        for new_follower in new_followers:
+            user_to_user_link = UserToUserLink(movement, new_follower, user)
             session.add(user_to_user_link)
 
 
 def remove_all_followers(leader_id: int, movement_id: int) -> None:
     """
-    This funciton removes all follower of a leader upon leaving a movment.
+    Remove all followers of a leader upon leaving a movement.
+
     It then tries to assign new leaders to followers.
 
     Args:
@@ -44,21 +47,29 @@ def remove_all_followers(leader_id: int, movement_id: int) -> None:
         movement = load_movement(movement_id, session)
 
         # Remove all links to the removed subscriber
-        leader_user_to_user_links_to_destroy = session.query(UserToUserLink).filter(
+        leader_links_to_destroy = session.query(UserToUserLink).filter(
             UserToUserLink.movement_id == movement_id,
             UserToUserLink.destroyed.is_(None),
             UserToUserLink.leader_id == leader_id,
         ).all()
 
-        for user_to_user_link in leader_user_to_user_links_to_destroy:
+        for user_to_user_link in leader_links_to_destroy:
             user_to_user_link.destroy()
 
         session.commit()
 
         # For each follower removed try to find a new leader
-        for user_to_user_link in leader_user_to_user_links_to_destroy:
-            poss_new_leaders = possible_leaders(user_to_user_link.follower, user_to_user_link.movement, session)
-            poss_new_leaders = [l for l in poss_new_leaders if l.id != leader_id]
+        for user_to_user_link in leader_links_to_destroy:
+            poss_new_leaders = possible_leaders(
+                user_to_user_link.follower,
+                user_to_user_link.movement,
+                session
+            )
+
+            poss_new_leaders = [
+                leader for leader in poss_new_leaders if leader.id != leader_id
+            ]
+
             # Add new UserToUserLinks for each former follower.
             if poss_new_leaders:
                 new_leader = random.choice(poss_new_leaders)
@@ -86,7 +97,9 @@ def send_signal(leader_id: int, movement_id: int, message: str = None):
         leader = load_user(leader_id, session)
         movement = load_movement(movement_id, session)
 
-        assert Subscription._subscription_exists(leader_id, movement_id, session)
+        assert Subscription._subscription_exists(
+            leader_id, movement_id, session
+        )
 
         signal = Signal(leader, movement, message)
         session.add(signal)
@@ -97,24 +110,24 @@ def possible_leaders(
     user: User, movement: Movement, session: Session
 ) -> Query:
     """Find possible leaders for a user in a movement."""
-
-
     leader_ids = session.query(UserToUserLink.leader_id).filter(
         UserToUserLink.movement_id == movement.id,
         UserToUserLink.follower_id == user.id,
         UserToUserLink.destroyed.is_(None)
     )
 
-    possible_leaders = [ subscription.user for subscription in
-        session.query(SUB)
-        .filter(
-            SUB.movement_id == movement.id,
-            SUB.time_removed.is_(None),
-            not_(SUB.user_id == user.id)
-        ).group_by(SUB.user_id)
-        .filter(not_(SUB.user_id.in_(leader_ids)))
-    ]
-    
+    possible_leaders_query = session.query(SUB).filter(
+        SUB.movement_id == movement.id,
+        SUB.time_removed.is_(None),
+        not_(SUB.user_id == user.id)
+    ).group_by(
+        SUB.user_id
+    ).filter(
+        not_(SUB.user_id.in_(leader_ids))
+    )
+
+    possible_leaders = [sub.user for sub in possible_leaders_query]
+
     # IDK why but if I don't add them to the session it crashes
-    session.add_all(possible_leaders) 
+    session.add_all(possible_leaders)
     return possible_leaders

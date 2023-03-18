@@ -1,3 +1,4 @@
+"""Controller for users."""
 import jwt
 from .helpers import session_scope, load_user
 from gridt.exc import UserNotFoundError
@@ -31,6 +32,13 @@ def update_user_bio(user_id: int, bio: str) -> None:
 
 
 def change_password(user_id: int, new_password: str):
+    """
+    Change the password for a user and send a notifaction email.
+
+    Args:
+        user_id (int): The id of the user in question
+        new_password (str): The new password
+    """
     with session_scope() as session:
         user = session.query(User).get(user_id)
         user.hash_and_store_password(new_password)
@@ -53,6 +61,14 @@ def change_email(user_id: int, token_string: str, secret_key):
 
 
 def request_email_change(user_id: int, new_email: str, secret_key: str):
+    """
+    Send a request email to change the email address.
+
+    Args:
+        user_id (int): The id of the user in question
+        new_email (str): The new email address
+        secret_key (str): The secret key used in the backend
+    """
     with session_scope() as session:
         user = load_user(user_id, session)
 
@@ -71,6 +87,8 @@ def request_email_change(user_id: int, new_email: str, secret_key: str):
 
 def request_password_reset(email: int, secret_key: str):
     """
+    Request a password reset.
+
     Make a dictionary containing the e-mail for password reset
     + an expiration timestamp such that the token is valid for 2 hours
     and encodes it into a JWT.
@@ -88,6 +106,7 @@ def request_password_reset(email: int, secret_key: str):
 
 
 def reset_password(token: str, password: str, secret_key: str):
+    """Reset the password."""
     with session_scope() as session:
         payload = jwt.decode(token, secret_key, algorithms=["HS256"])
         user = session.query(User).get(payload["user_id"])
@@ -96,12 +115,14 @@ def reset_password(token: str, password: str, secret_key: str):
 
 
 def verify_password_for_id(user_id: int, password: str) -> int:
+    """Verify the password for the id."""
     with session_scope() as session:
         user = load_user(user_id, session)
         return user.verify_password(password)
 
 
 def verify_password_for_email(email: str, password: str) -> int:
+    """Verify password for email."""
     with session_scope() as session:
         user = session.query(User).filter_by(email=email).one()
         if user.verify_password(password):
@@ -111,12 +132,14 @@ def verify_password_for_email(email: str, password: str) -> int:
 
 
 def register(username: str, email: str, password: str, is_admin=False):
+    """Register a new user."""
     with session_scope() as session:
         user = User(username, email, password, is_admin)
         session.add(user)
 
 
 def get_identity(user_id: int):
+    """Get a user as json."""
     with session_scope() as session:
         user = session.get(User, user_id)
         return user.to_json(include_email=True)
