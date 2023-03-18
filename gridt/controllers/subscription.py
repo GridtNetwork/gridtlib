@@ -196,7 +196,7 @@ def add_json_subscription_details(json, movement, user, session) -> None:
         last_leader_signal = Leader.get_last_signal(
             leader_id=leader.id,
             movement_id=movement.id,
-            Session=session
+            session=session
         )
         if last_leader_signal:
             leader_json.update(last_signal=last_leader_signal.to_json())
