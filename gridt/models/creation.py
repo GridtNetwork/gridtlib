@@ -27,7 +27,7 @@ class Creation(MovementUserRelation):
             str: string representation of the object
         """
         return (
-            f"<Creation relation: {self.user.username}",
+            f"<Creation relation: {self.user.username}"
             f" has created {self.movement.name}>"
         )
 

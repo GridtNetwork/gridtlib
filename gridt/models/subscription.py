@@ -37,7 +37,7 @@ class Subscription(MovementUserRelation):
             str: string representation of the object
         """
         return (
-            f"<Subscription relation: {self.user.username}",
+            f"<Subscription relation: {self.user.username}"
             f" is subscribed to {self.movement.name}>"
         )
 
