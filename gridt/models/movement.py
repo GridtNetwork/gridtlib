@@ -1,3 +1,4 @@
+"""Model for movements in the database."""
 from sqlalchemy import Column, Integer, String
 
 from gridt.db import Base
@@ -5,7 +6,7 @@ from gridt.db import Base
 
 class Movement(Base):
     """
-    Intuitive representation of movements in the database. ::
+    Intuitive representation of movements in the database.
 
         flossing = Movement('flossing', 'daily')
         robin = User.find_by_id(1)
@@ -38,6 +39,7 @@ class Movement(Base):
     description = Column(String(1000))
 
     def __init__(self, name, interval, short_description="", description=""):
+        """Construct a new movement."""
         self.name = name
         self.interval = interval
         self.short_description = short_description
@@ -54,4 +56,5 @@ class Movement(Base):
         }
 
     def __repr__(self):
+        """Represent the movement as a string."""
         return f"<Movement name={self.name}>"

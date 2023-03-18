@@ -1,9 +1,9 @@
+"""Model for creation in the database."""
 from .movement_user_relation import MovementUserRelation
 
+
 class Creation(MovementUserRelation):
-    """
-    This class models the creation relation of a user to a movement.
-    """
+    """This class models the creation relation of a user to a movement."""
 
     __mapper_args__ = {
         "polymorphic_identity": "creation",
@@ -11,27 +11,29 @@ class Creation(MovementUserRelation):
 
     def __init__(self, user=None, movement=None):
         """
-        Constructor for the creation relation class 
+        Construct a new creation relation class.
 
         Args:
-            user (User, optional): The user which create the movement. Defaults to None.
-            movement (Movement, optional): The movement the user created. Defaults to None.
+            user (User, optional): The user which create the movement.
+            movement (Movement, optional): The movement the user created.
         """
         super().__init__(user, movement)
 
     def __repr__(self):
         """
-        This method defines the string representation of the creation relation class
+        Get the string representation of the creation relation class.
 
         Returns:
             str: string representation of the object
         """
-        return f"<Creation relation: {self.user.username} has created {self.movement.name}>"
-
+        return (
+            f"<Creation relation: {self.user.username}",
+            f" has created {self.movement.name}>"
+        )
 
     def to_json(self) -> dict:
         """
-        This method computes the json representation of a creation relation
+        Get the json representation of a creation relation.
 
         Returns:
             dict: Json representation of the creation object

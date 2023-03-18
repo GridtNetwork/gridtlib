@@ -1,3 +1,4 @@
+"""Model for user in the database."""
 import datetime
 import jwt
 from sqlalchemy import Column, Integer, String, UnicodeText, Boolean
@@ -33,6 +34,7 @@ class User(Base):
     bio = Column(UnicodeText)
 
     def __init__(self, username, email, password, is_admin=False, bio=""):
+        """Construct a new user."""
         self.username = username
         self.email = email
         self.hash_and_store_password(password)
@@ -40,19 +42,19 @@ class User(Base):
         self.bio = bio
 
     def __repr__(self):
+        """Get the string representation of the user."""
         return f"<User username={self.username}>"
 
     def hash_and_store_password(self, password):
         """
         Hash password and set it as the password_hash.
+
         :param str password: Password that is to be hashed.
         """
         self.password_hash = pwd_context.hash(password)
 
     def get_email_hash(self):
-        """
-        Hash e-mail with md5.
-        """
+        """Hash e-mail with md5."""
         h = hashlib.md5()
         h.update(bytes(self.email, "utf-8"))
         email_hash = h.hexdigest()
@@ -60,14 +62,14 @@ class User(Base):
 
     def verify_password(self, password):
         """
-        Verify that this password matches with the hashed version in the
-        database.
+        Verify that this password matches with the saved password hash.
 
         :rtype bool:
         """
         return pwd_context.verify(password, self.password_hash)
 
     def get_password_reset_token(self, secret_key):
+        """Get a token to reset the user's password."""
         now = datetime.datetime.now()
         valid = datetime.timedelta(hours=2)
         exp = now + valid
@@ -80,6 +82,8 @@ class User(Base):
 
     def get_email_change_token(self, new_email, secret_key):
         """
+        Get a token to change the user's email.
+
         Make a dictionary containing the user's id, new email
         + an expiration timestamp such that the token is valid for 2 hours
         and encodes it into a JWT.
@@ -99,6 +103,7 @@ class User(Base):
         return token
 
     def to_json(self, include_email=False):
+        """Compute the json representation of the json."""
         res = {
             "id": self.id,
             "username": self.username,

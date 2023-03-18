@@ -1,3 +1,4 @@
+"""Model for user to user link in the database."""
 from datetime import datetime
 from sqlalchemy import Column, Integer, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
@@ -8,7 +9,9 @@ from gridt.models import Movement, User
 
 class UserToUserLink(Base):
     """
-    Association class that lies at the foundation of the network.
+    UserToUserLink class for the edge between two users in a movement.
+
+    This is an association class that lies at the foundation of the network.
     Think of this class as the arrows that connect followers with
     leaders within their respective circle of the movement.
 
@@ -35,10 +38,13 @@ class UserToUserLink(Base):
     follower = relationship(User, foreign_keys=[follower_id])
     leader = relationship(User, foreign_keys=[leader_id])
 
-    def __init__(self, movement:Movement=None, follower:User=None, leader:User=None):
-        # movement=None and follower=None
-        # are required for correct functioning of
-        # user_associations in ./movement.py
+    def __init__(
+        self,
+        movement: Movement = None,
+        follower: User = None,
+        leader: User = None
+    ):
+        """Construct a new user to user link."""
         self.follower = follower
         self.movement = movement
         self.leader = leader
@@ -46,6 +52,7 @@ class UserToUserLink(Base):
         self.destroyed = None
 
     def __repr__(self):
+        """Get the string representation of a user to user link."""
         graph_string = f"{self.follower_id}"
         if self.destroyed:
             graph_string += "X"
@@ -60,7 +67,8 @@ class UserToUserLink(Base):
 
     def destroy(self):
         """
-        Destroy this association.
-        Association can still be found in database.
+        Destroy this user to user link.
+
+        Note: the Association can still be found in database.
         """
         self.destroyed = datetime.now()
