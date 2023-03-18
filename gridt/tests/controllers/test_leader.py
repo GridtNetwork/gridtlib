@@ -297,7 +297,7 @@ class LeaderControllersTest(BaseTest):
         send_signal(user1.id, movement1.id)
 
         self.session.add_all([user1, movement1])
-        signal = self.session.query(Signal).get(1)
+        signal = self.session.get(Signal,1)
         self.assertIsNotNone(signal)
 
 

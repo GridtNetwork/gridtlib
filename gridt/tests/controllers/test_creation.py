@@ -58,7 +58,7 @@ class CreationControllerTest(BaseTest):
         self.assertFalse(is_creator(user_3_id, movement_2_id))
 
     def test_new_movement_by_user(self):
-        user = self.create_user()
+        user = self.create_user(is_admin=True)
         m_name = "Test Movement"
         m_interval = "daily"
         m_short = "This is a movement for testing purposes"

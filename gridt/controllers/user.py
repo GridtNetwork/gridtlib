@@ -110,13 +110,13 @@ def verify_password_for_email(email: str, password: str) -> int:
             raise ValueError("Wrong password")
 
 
-def register(username: str, email: str, password: str):
+def register(username: str, email: str, password: str, is_admin=False):
     with session_scope() as session:
-        user = User(username, email, password)
+        user = User(username, email, password, is_admin)
         session.add(user)
 
 
 def get_identity(user_id: int):
     with session_scope() as session:
-        user = session.query(User).get(user_id)
+        user = session.get(User, user_id)
         return user.to_json(include_email=True)

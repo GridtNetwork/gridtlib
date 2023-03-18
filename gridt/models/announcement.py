@@ -51,14 +51,20 @@ class Announcement(Base):
         Returns:
             dict: JSON representation of the Announcement
         """
-        return {
+        json_dict = {
             "id": self.id,
             "movement_id": self.movement_id,
             "poster": self.poster.to_json(),
             "message": self.message,
-            "created_time": self.created_time,
-            "updated_time": self.updated_time
+            "created_time": str(self.created_time.astimezone())
         }
+
+        if self.updated_time:
+            json_dict["updated_time"] = str(self.updated_time.astimezone())
+        else:
+            json_dict["updated_time"] = None
+
+        return json_dict
 
     def update_message(self, message: str):
         """

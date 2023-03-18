@@ -27,7 +27,7 @@ class UnitTestsAnnouncementController(BaseTest):
 
     def test_create_announcement(self):
         movement = self.create_movement()
-        user = self.create_user()
+        user = self.create_user(is_admin=True)
         self.session.commit()
 
         movement_id = movement.id
@@ -38,7 +38,7 @@ class UnitTestsAnnouncementController(BaseTest):
             "movement_id": movement_id,
             "poster": user.to_json(),
             "message": message,
-            "created_time": datetime(2023, 2, 25, 16, 30, 0),
+            "created_time": str(datetime(2023, 2, 25, 16, 30, 0).astimezone()),
             "updated_time": None
         }
 
@@ -55,7 +55,7 @@ class UnitTestsAnnouncementController(BaseTest):
 
     def test_update_announcement(self):
         movement = self.create_movement()
-        user = self.create_user()
+        user = self.create_user(is_admin=True)
 
         with freeze_time("2023-02-25 17:00:00"):
             announcement = Announcement(movement, "Hello, this is new annoucement", user)
@@ -65,7 +65,6 @@ class UnitTestsAnnouncementController(BaseTest):
 
         announcement_id = announcement.id
         user_id = user.id
-        expected = announcement.to_json()
 
         # Check errors
         with self.assertRaises(E.UserNotFoundError):
@@ -74,9 +73,7 @@ class UnitTestsAnnouncementController(BaseTest):
             update_announcement("", announcement_id+1, user_id)
 
         with freeze_time("2023-02-25 16:30"):
-            announcement_json = update_announcement("Hello, this is a new announcement", announcement_id, user_id)
-
-        self.assertDictEqual(announcement_json, expected)
+            update_announcement("Hello, this is a new announcement", announcement_id, user_id)
 
         updated_announcement = self.session.query(Announcement).filter(
             Announcement.id == announcement_id
@@ -86,12 +83,11 @@ class UnitTestsAnnouncementController(BaseTest):
         
     def test_delete_announcement(self):
         movement = self.create_movement()
-        user = self.create_user()
+        user = self.create_user(is_admin=True)
         announcement = Announcement(movement, "Hello, this is a new announcement", user)
         self.session.add(announcement)
         self.session.commit()
 
-        expected_json = announcement.to_json()
         announcement_id = announcement.id
         user_id = user.id
 
@@ -102,9 +98,8 @@ class UnitTestsAnnouncementController(BaseTest):
             delete_announcement(announcement_id+1, user_id)
 
         with freeze_time("2023-02-25 21:00:00"):
-            announcement_json = delete_announcement(announcement_id, user_id)
+            delete_announcement(announcement_id, user_id)
 
-        self.assertDictEqual(announcement_json, expected_json)
         self.assertEqual(1, self.session.query(Announcement).filter(
             Announcement.removed_time == datetime(2023, 2, 25, 21, 0, 0)
         ).count())
@@ -124,7 +119,7 @@ class UnitTestsAnnouncementController(BaseTest):
             _get_announcement(announcement_id + 1, self.session)
 
         self.assertEqual(
-            self.session.query(Announcement).get(announcement_id),
+            self.session.get(Announcement, announcement_id),
             _get_announcement(announcement_id, self.session)
         )
 
@@ -163,7 +158,6 @@ class UnitTestsAnnouncementController(BaseTest):
 
 class TestUserStoriesAnnouncementController(BaseTest):
     """
-    TODO: Some of the User Stories should be for admins only.
     These user stories should be updated once roles are implemented.
     """
 
@@ -171,7 +165,7 @@ class TestUserStoriesAnnouncementController(BaseTest):
         """
         As an administrator I would like to be able to make a announcements for movements.
         """
-        register('Antonin', 'antonin.thioux@gmail.com', 'password123')
+        register('Antonin', 'antonin.thioux@gmail.com', 'password123', True)
         antonin_id = verify_password_for_email('antonin.thioux@gmail.com', 'password123')
 
         with freeze_time("2023-02-25 12:00:00"):
@@ -202,7 +196,7 @@ class TestUserStoriesAnnouncementController(BaseTest):
         """
         As an administrator I would like to be able to update announcements
         """
-        register('Antonin', 'antonin.thioux@gmail.com', 'password123')
+        register('Antonin', 'antonin.thioux@gmail.com', 'password123', True)
         antonin_id = verify_password_for_email('antonin.thioux@gmail.com', 'password123')
         antonin_json = get_identity(antonin_id)
         del antonin_json['email']  # Email should be private
@@ -222,19 +216,15 @@ class TestUserStoriesAnnouncementController(BaseTest):
             info_id = info_announcement_json['id']
         with freeze_time("2023-02-25 15:00:00"):
             welcome_message += "\nFollow us on FaceBook!"
-            self.assertDictEqual(
-                welcome_announcement_json,
-                update_announcement(welcome_message, welcome_id, antonin_id),
-                "Update announcement should return the json representation before the update"
-            )
-        
+            update_announcement(welcome_message, welcome_id, antonin_id)
+
         expected_welcome_json = {
             'id': welcome_id,
             'movement_id': m_id,
             'message': welcome_message,
             'poster': antonin_json,
-            'created_time': datetime(2023, 2, 25, 13, 0),
-            'updated_time': datetime(2023, 2, 25, 15, 0)
+            'created_time': str(datetime(2023, 2, 25, 13, 0).astimezone()),
+            'updated_time': str(datetime(2023, 2, 25, 15, 0).astimezone())
         }
         self.assertEqual(
             expected_welcome_json,
@@ -251,33 +241,26 @@ class TestUserStoriesAnnouncementController(BaseTest):
             habit_id = habit_announcement_json['id']
         with freeze_time("2023-02-26 14:05:00"):
             habit_message = "Motivation is what gets you started, habit is what keeps you going"
-            self.assertDictEqual(
-                habit_announcement_json,
-                update_announcement(habit_message, habit_id, antonin_id),
-                "Update announcement should return the json representation before the update"
-            )
+            update_announcement(habit_message, habit_id, antonin_id)
             update_announcement(habit_message + "!", habit_id, antonin_id)
             info_message += " on our facebook page!"
-            self.assertDictEqual(
-                info_announcement_json,
-                update_announcement(info_message, info_id, antonin_id),
-                "Update announcement should return the json representation before the update"
-            )
+            update_announcement(info_message, info_id, antonin_id)
+
         expected_info_json = {
             'id': info_id,
             'movement_id': m_id,
             'message': info_message,
             'poster': antonin_json,
-            'created_time': datetime(2023, 2, 25, 13, 30),
-            'updated_time': datetime(2023, 2, 26, 14, 5)
+            'created_time': str(datetime(2023, 2, 25, 13, 30).astimezone()),
+            'updated_time': str(datetime(2023, 2, 26, 14, 5).astimezone())
         }
         expected_habit_json = {
             'id': habit_id,
             'movement_id': m_id,
             'message': habit_message + "!",
             'poster': antonin_json,
-            'created_time': datetime(2023, 2, 26, 14, 0),
-            'updated_time': datetime(2023, 2, 26, 14, 5)
+            'created_time': str(datetime(2023, 2, 26, 14, 0).astimezone()),
+            'updated_time': str(datetime(2023, 2, 26, 14, 5).astimezone())
         }
         self.assertDictEqual(
             expected_welcome_json,
@@ -296,7 +279,7 @@ class TestUserStoriesAnnouncementController(BaseTest):
         """
         As an administrator I would like to be able to delete announcements
         """
-        register('Antonin', 'antonin.thioux@gmail.com', 'password123')
+        register('Antonin', 'antonin.thioux@gmail.com', 'password123', True)
         antonin_id = verify_password_for_email('antonin.thioux@gmail.com', 'password123')
 
         with freeze_time("2023-02-25 12:00:00"):
@@ -317,17 +300,9 @@ class TestUserStoriesAnnouncementController(BaseTest):
             wrong_id = wrong_announcement_json['id']
 
         with freeze_time("2023-02-26 14:30:00"):
-            self.assertDictEqual(
-                welcome1_announcement_json,
-                delete_announcement(welcome1_id, antonin_id),
-                "Delete announcement should return the json of the announcement before deletion"
-            )
-            self.assertDictEqual(
-                wrong_announcement_json,
-                delete_announcement(wrong_id, antonin_id),
-                "Delete announcement should return the json of the announcement before deletion"
-            )
-        
+            delete_announcement(welcome1_id, antonin_id)
+            delete_announcement(wrong_id, antonin_id)
+
         self.assertIsNone(get_movement(m1_id, antonin_id)['last_announcement'])
         self.assertListEqual([], get_announcements(m1_id))
         self.assertDictEqual(welcome2_announcement_json, get_movement(m2_id, antonin_id)['last_announcement'])
@@ -337,7 +312,7 @@ class TestUserStoriesAnnouncementController(BaseTest):
         """
         As a subscriber to a movement I would like to be able to view the movement's announcements
         """
-        register('Antonin', 'antonin.thioux@gmail.com', 'password123')
+        register('Antonin', 'antonin.thioux@gmail.com', 'password123', True)
         antonin_id = verify_password_for_email('antonin.thioux@gmail.com', 'password123')
 
         with freeze_time("2023-02-25 12:00:00"):

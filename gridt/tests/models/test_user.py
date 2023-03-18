@@ -11,15 +11,15 @@ class UnitTestUser(BaseTest):
 
         self.assertEqual(user1.username, "username")
         self.assertEqual(user1.verify_password("password"), True)
-        self.assertEqual(user1.role, "user")
+        self.assertEqual(user1.is_admin, False)
 
         user2 = User(
-            "username2", "test@test.com", "password2", role="administrator"
+            "username2", "test@test.com", "password2", is_admin=True
         )
 
         self.assertEqual(user2.username, "username2")
         self.assertEqual(user2.verify_password("password2"), True)
-        self.assertEqual(user2.role, "administrator")
+        self.assertEqual(user2.is_admin, True)
 
     def test_hash(self):
         user = User("username", "test@test.com", "test")

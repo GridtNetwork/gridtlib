@@ -49,7 +49,7 @@ class UnitTestAnnouncmentModel(BaseTest):
             "movement_id": movement_id,
             "poster": user.to_json(),
             "message": message,
-            "created_time": datetime(2023, 2, 25, 16, 0),
+            "created_time": str(datetime(2023, 2, 25, 16, 0).astimezone()),
             "updated_time": None
         })
 
