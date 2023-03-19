@@ -1,3 +1,4 @@
+"""This module contains the DB session for gridt."""
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy import create_engine
@@ -10,14 +11,13 @@ Base = declarative_base()
 Session = scoped_session(sessionmaker())
 
 
-def init_db_connect(url:str="sqlite:///:memory:") -> None:
+def init_db_connect(url: str = "sqlite:///:memory:") -> None:
     """
-    This function initializes the session engine for GridtLib.
+    Initialize the session engine for GridtLib.
 
     Args:
         url (str): The url to the sql database that should be used.
     """
-    
     try:
         if not database_exists(url):
             create_database(url)
