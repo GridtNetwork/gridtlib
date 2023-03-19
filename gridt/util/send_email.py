@@ -1,3 +1,4 @@
+"""Module to send emails from info@gridt.org to users."""
 import os
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
