@@ -1,3 +1,4 @@
+"""Controller for annoucements in gridt movements."""
 from .helpers import (
     session_scope,
     load_movement,
@@ -11,24 +12,28 @@ from gridt.models import Announcement
 from sqlalchemy.orm.session import Session
 from sqlalchemy.exc import NoResultFound
 
+
 def create_announcement(message: str, movement_id: int, user_id: int) -> dict:
     """
-    This function creates a new announcement from a user.
+    Create a new announcement, orginating from a user.
 
     Args:
         message (str): The message in the announcement
-        movement_id (int): The id of the movement which should have the announcement.
+        movement_id (int): The movement id to add an announcement to.
         user_id (int): The id of the user which is creating the announcement.
 
     Returns:
         dict: The JSON representation of the new announcement
     """
-
     with session_scope() as session:
         assert_user_is_admin(user_id, session)
         movement = load_movement(movement_id, session)
         user = load_user(user_id, session)
-        announcement = Announcement(movement=movement, message=message, user=user)
+        announcement = Announcement(
+            movement=movement,
+            message=message,
+            user=user
+        )
         session.add(announcement)
         session.commit()
         announcement_json = announcement.to_json()
@@ -38,17 +43,17 @@ def create_announcement(message: str, movement_id: int, user_id: int) -> dict:
 
 def _get_announcement(announcement_id: int, session: Session) -> Announcement:
     """
-    This is a helper function get an announcement in the database
+    Return announcement from the database.
 
     Args:
         announcement_id (int): The id of the announcement in question
         session (Session): The sqlAlchemy session that should be used
 
     Raises:
-        GridtExceptions.AnnouncementNotFoundError: If the announcement does not exist
+        GridtExceptions.AnnouncementNotFoundError: No announcement with that id
 
     Returns:
-        Announcement: The announcement object 
+        Announcement: The announcement object
     """
     try:
         return session.query(Announcement).filter(
@@ -59,13 +64,13 @@ def _get_announcement(announcement_id: int, session: Session) -> Announcement:
         raise GridtExceptions.AnnouncementNotFoundError
 
 
-def update_announcement(message: str, announcement_id: int, user_id: int) -> None:
+def update_announcement(message: str, announcement_id: int, user_id: int):
     """
-    This function updates an announcement from user.
+    Update a announcement through a user.
 
     Args:
-        message (str): The new message that should replace the old annoucement text.
-        announcement_id (int): The id of the announcement that should be updated.
+        message (str): The new message that should replace the old message.
+        announcement_id (int): The id of the announcement to update.
         user_id (int): The user updating the announcement
     """
     with session_scope() as session:
@@ -77,7 +82,7 @@ def update_announcement(message: str, announcement_id: int, user_id: int) -> Non
 
 def delete_announcement(announcement_id: int, user_id: int) -> None:
     """
-    This function deletes an announcement from a user.
+    Delete an announcement through a user.
 
     Args:
         announcement_id (int): The id of the announcment that has been deleted.
@@ -92,7 +97,7 @@ def delete_announcement(announcement_id: int, user_id: int) -> None:
 
 def get_announcements(movement_id: int) -> list:
     """
-    This function gets the announcements in a movement
+    Get list of announcement in a movement.
 
     Args:
         movement_id (int): The id of the movement in question
@@ -110,13 +115,13 @@ def get_announcements(movement_id: int) -> list:
     return announcements_jsons
 
 
-def add_json_announcement_details(json: dict, movement, session: Session) -> None:
+def add_json_announcement_details(json: dict, movement, session: Session):
     """
-    This function adds the latest announcement details for a movement
+    Add movement details about latest annoucement for a movement.
 
     Args:
         json (dict): The json to construct
-        movement (Movement): The movement 
+        movement (Movement): The movement
         session (Session): The sqlAlchemy session to use
     """
     announcement = session.query(Announcement).filter(

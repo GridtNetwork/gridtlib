@@ -1,9 +1,11 @@
+"""Context without std error output."""
 import contextlib
 import sys
 
 
 @contextlib.contextmanager
 def nostderr():
+    """Remove stderr within context."""
     savestderr = sys.stderr
 
     class Devnull(object):

@@ -1,3 +1,4 @@
+"""Gridt email templates."""
 from .send_email import send_email
 import os
 
@@ -44,6 +45,7 @@ def send_password_change_notification(email):
 
 
 def send_email_change_email(email, username, token):
+    """Send a predefined email template with link to change email."""
     template_id = os.environ["EMAIL_CHANGE_TEMPLATE"]
     template_data = {
         "username": username,
@@ -56,6 +58,7 @@ def send_email_change_email(email, username, token):
 
 
 def send_email_change_notification(email, username):
+    """Send a predefined emaill template to send a new email adress."""
     template_id = os.environ["EMAIL_CHANGE_NOTIFICATION_TEMPLATE"]
     template_data = {"username": username}
 

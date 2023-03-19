@@ -1,3 +1,4 @@
+"""Model for announcements in the database."""
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -5,7 +6,16 @@ from datetime import datetime
 from gridt.db import Base
 from gridt.models import Movement, User
 
+
 class Announcement(Base):
+    """
+    Announcement class for messages send across movements to each user.
+
+    This class represents a table in the SQL database which holds rows of
+    accouncements. All the logic to edit an accouncement can be found in this
+    class.
+    """
+
     __tablename__ = "announcements"
 
     id = Column(Integer, primary_key=True)
@@ -19,9 +29,9 @@ class Announcement(Base):
     movement = relationship(Movement)
     poster = relationship(User)
 
-    def __init__(self, movement:Movement, message:str, user:User):
+    def __init__(self, movement: Movement, message: str, user: User):
         """
-        Constructors for movement announcements
+        Construct a new movement announcement.
 
         Args:
             movement (Movement): The movement to create an announcement for
@@ -37,7 +47,7 @@ class Announcement(Base):
 
     def __str__(self) -> str:
         """
-        Stringify method for Announcements
+        Stringify an Announcement.
 
         Returns:
             str: str representation of the Announcement
@@ -46,7 +56,7 @@ class Announcement(Base):
 
     def to_json(self) -> dict:
         """
-        Converts the announcement to json
+        Convert an announcement to json.
 
         Returns:
             dict: JSON representation of the Announcement
@@ -68,16 +78,14 @@ class Announcement(Base):
 
     def update_message(self, message: str):
         """
-        Updates the message of the announcement
+        Update the message of the announcement.
 
         Args:
-            message (str): The message that should replace the previous announcement
+            message (str): The message to replace the last announcement.
         """
         self.message = message
         self.updated_time = datetime.now()
 
     def remove(self):
-        """
-        Delete the announcement
-        """
+        """Delete the announcement."""
         self.removed_time = datetime.now()

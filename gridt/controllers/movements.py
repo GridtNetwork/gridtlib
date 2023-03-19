@@ -1,3 +1,4 @@
+"""Controller for Movements."""
 from .helpers import (
     session_scope,
     load_user,
@@ -16,13 +17,13 @@ def create_movement(
     description: str = None,
 ) -> dict:
     """
-    Creates a new movement.
+    Create a new movement.
 
     Args:
         name (str): The name of the movement
         interval (str): The signal interval the new movement should have.
-        short_description (str, optional): Short summary of the new movement. Defaults to None.
-        description (str, optional): Opitonal more in depth description of the new movment. Defaults to None.
+        short_description (str, optional): Short summary of the new movement.
+        description (str, optional): More in depth description.
 
     Returns:
         dict: json representation of the new movement
@@ -32,7 +33,7 @@ def create_movement(
         session.add(movement)
         session.commit()
         movement_json = movement.to_json()
-    
+
     return movement_json
 
 
@@ -64,6 +65,7 @@ def get_movement(movement_identifier, user_id):
 
 
 def movement_exists(movement_id):
+    """Check if a movement exists through an expection otherwise."""
     with session_scope() as session:
         try:
             load_movement(movement_id, session)
@@ -74,7 +76,7 @@ def movement_exists(movement_id):
 
 def extend_movement_json(movement, user, session) -> dict:
     """
-    This function extends the json of a movement with information about user relations to the movement such as subscriptions and signals.
+    Extend the json for a movement with additional information.
 
     Args:
         movement (Movement): The movement itself.
@@ -86,10 +88,14 @@ def extend_movement_json(movement, user, session) -> dict:
     """
     movement_json = movement.to_json()
     movement_json["subscribed"] = False
-    
+
     if Subscription._subscription_exists(user.id, movement.id, session):
         movement_json["subscribed"] = True
-        Announcement.add_json_announcement_details(movement_json, movement, session)
-        Subscription.add_json_subscription_details(movement_json, movement, user, session)
+        Announcement.add_json_announcement_details(
+            movement_json, movement, session
+        )
+        Subscription.add_json_subscription_details(
+            movement_json, movement, user, session
+        )
 
     return movement_json

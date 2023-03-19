@@ -1,3 +1,4 @@
+"""Controller for subscriptions."""
 from gridt.models import Subscription
 from gridt.controllers import follower as Follower, leader as Leader
 from .helpers import (
@@ -11,9 +12,11 @@ from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import Session
 
 
-def _get_subscription(user_id: int, movement_id: int, session: Session) -> Query:
+def _get_subscription(
+    user_id: int, movement_id: int, session: Session
+) -> Query:
     """
-    Helper function to get subscription
+    Get a subscription helper.
 
     Args:
         user_id (int): The id of the user
@@ -33,14 +36,17 @@ def _get_subscription(user_id: int, movement_id: int, session: Session) -> Query
     )
 
     if not subscriptions.count():
-        raise GridtExceptions.SubscriptionNotFoundError(f"User '{user_id}' is not subscribed to Movement '{movement_id}'. Or one or both do not exist")
-    
+        raise GridtExceptions.SubscriptionNotFoundError(
+            f"User '{user_id}' is not subscribed to Movement '{movement_id}'.",
+            " Or one or both do not exist"
+        )
+
     return subscriptions.one()
 
 
 def is_subscribed(user_id: int, movement_id: int) -> bool:
     """
-    Checks if a user is subscribed to a movement
+    Check if a user is subscribed to a movement.
 
     Args:
         user_id (int): The id of the user
@@ -50,9 +56,11 @@ def is_subscribed(user_id: int, movement_id: int) -> bool:
         return _subscription_exists(user_id, movement_id, session)
 
 
-def _subscription_exists(user_id: int, movement_id: int, session: Session) -> bool:
+def _subscription_exists(
+    user_id: int, movement_id: int, session: Session
+) -> bool:
     """
-    Helper function checks if a subscription exists.
+    Check if a subscription exists.
 
     Args:
         user_id (int): The id of the user
@@ -61,7 +69,7 @@ def _subscription_exists(user_id: int, movement_id: int, session: Session) -> bo
     Returns:
         bool: True if the movement contains the user. otherwise, false
     """
-    try: 
+    try:
         _get_subscription(user_id, movement_id, session)
     except GridtExceptions.SubscriptionNotFoundError:
         return False
@@ -71,7 +79,7 @@ def _subscription_exists(user_id: int, movement_id: int, session: Session) -> bo
 
 def new_subscription(user_id: int, movement_id: int) -> dict:
     """
-    Creates a new subscription between a user and a movement.
+    Create a new subscription between a user and a movement.
 
     Args:
         user_id (int): The id of the user
@@ -83,7 +91,7 @@ def new_subscription(user_id: int, movement_id: int) -> dict:
     with session_scope() as session:
         user = load_user(user_id, session)
         movement = load_movement(movement_id, session)
-        
+
         subscription = Subscription(user, movement)
         session.add(subscription)
         subscription_json = subscription.to_json()
@@ -96,7 +104,7 @@ def new_subscription(user_id: int, movement_id: int) -> dict:
 
 def remove_subscription(user_id: int, movement_id: int) -> dict:
     """
-    Ends a subscription relation between a user and a movement.
+    End a subscription relation between a user and a movement.
 
     Args:
         user_id (int): The id of the user
@@ -120,7 +128,7 @@ def remove_subscription(user_id: int, movement_id: int) -> dict:
 
 def get_subscribers(movement_id: int) -> list:
     """
-    Gets the all subscribers of a movement.
+    Get the all subscribers of a movement.
 
     Args:
         movement_id (int): The id of the movement
@@ -136,12 +144,15 @@ def get_subscribers(movement_id: int) -> list:
                 Subscription.time_removed.is_(None)
             )
         )
-        return [subscriber.user.to_json() for subscriber in movement_subscribers]
+        return [
+            subscriber.user.to_json()
+            for subscriber in movement_subscribers
+        ]
 
 
 def get_subscriptions(user_id: int) -> list:
     """
-    Gets all the subscriptions of a user.
+    Get all the subscriptions of a user.
 
     Args:
         user_id (int): The id of the user.
@@ -165,7 +176,7 @@ def get_subscriptions(user_id: int) -> list:
 
 def add_json_subscription_details(json, movement, user, session) -> None:
     """
-    This function appends subscription details to a dictionary
+    Append subscription details to a dictionary.
 
     Args:
         json (dict): The json to append with the subscription details.
@@ -182,7 +193,11 @@ def add_json_subscription_details(json, movement, user, session) -> None:
     for leader in Follower.get_leaders(user, movement, session):
         leader_json = leader.to_json()
 
-        last_leader_signal = Leader.get_last_signal(leader.id, movement.id, session)
+        last_leader_signal = Leader.get_last_signal(
+            leader_id=leader.id,
+            movement_id=movement.id,
+            session=session
+        )
         if last_leader_signal:
             leader_json.update(last_signal=last_leader_signal.to_json())
 

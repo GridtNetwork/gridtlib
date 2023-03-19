@@ -1,9 +1,13 @@
+"""Tests for Movement Model."""
 from gridt.tests.basetest import BaseTest
-from gridt.models import UserToUserLink, Movement
+from gridt.models import Movement
 
 
 class UnitTestMovement(BaseTest):
+    """Movement Model unittests."""
+
     def test_create(self):
+        """Unittest for __init__."""
         movement1 = Movement("movement1", "daily")
 
         self.assertEqual(movement1.name, "movement1")
@@ -23,6 +27,7 @@ class UnitTestMovement(BaseTest):
         self.assertEqual(movement2.description, "")
 
     def test_to_json(self):
+        """Unittest for to_json."""
         movement = Movement(
             "movement1",
             "daily",
@@ -39,4 +44,3 @@ class UnitTestMovement(BaseTest):
             "interval": "daily",
         }
         self.assertEqual(movement.to_json(), expected)
-

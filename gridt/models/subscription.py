@@ -1,8 +1,14 @@
+"""Model for subscription in the database."""
 from .movement_user_relation import MovementUserRelation
+
 
 class Subscription(MovementUserRelation):
     """
-    This class models the subscription of a user to a movement.
+    Subscription class for the subscription of a user to a movement.
+
+    This class represents a table in the SQL database which holds rows of
+    subscriptions. All the logic to edit an subscription can be found in this
+    class.
     """
 
     __mapper_args__ = {
@@ -10,33 +16,34 @@ class Subscription(MovementUserRelation):
     }
 
     def unsubscribe(self):
-        """
-        Ends the subscription.
-        """
+        """End the subscription."""
         self.end()
 
     def __init__(self, user=None, movement=None):
         """
-        Constructor for the subscription class 
+        Construct a new subscription.
 
         Args:
-            user (User, optional): The user which is subscribes to a movement. Defaults to None.
-            movement (Movement, optional): The movement the user is subscribing to. Defaults to None.
+            user (User, optional): The user which is subscribes to a movement.
+            movement (Movement, optional): The movement the user is subscribed.
         """
         super().__init__(user, movement)
 
     def __repr__(self):
         """
-        This method defines the string representation of the class
+        Get the string representation of the subscription.
 
         Returns:
             str: string representation of the object
         """
-        return f"<Subscription relation: {self.user.username} is subscribed to {self.movement.name}>"
+        return (
+            f"<Subscription relation: {self.user.username}"
+            f" is subscribed to {self.movement.name}>"
+        )
 
     def to_json(self) -> dict:
         """
-        This method computes the json representation of a subscription
+        Compute the json representation of the subscription.
 
         Returns:
             dict: Json representation of the subscription object.

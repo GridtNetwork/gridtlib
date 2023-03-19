@@ -1,3 +1,4 @@
+"""Test for movement controller."""
 from freezegun import freeze_time
 from unittest import skip
 
@@ -7,11 +8,14 @@ from gridt.models import Movement, Subscription, UserToUserLink
 from gridt.controllers.leader import send_signal
 from gridt.controllers.movements import get_movement, create_movement
 
+from datetime import datetime
+
 
 class MovementControllerUnitTests(BaseTest):
-
+    """Unittest for movement controller."""
 
     def test_create_movement(self):
+        """Unittest for create_movement."""
         json_creation = create_movement(
             "movement1",
             "daily",
@@ -30,8 +34,9 @@ class MovementControllerUnitTests(BaseTest):
         }
 
         self.assertDictEqual(expected, json_creation)
-    
+
     def test_get_movement(self):
+        """Unittest for get_movement."""
         movement = Movement(
             "movement1",
             "daily",
@@ -45,24 +50,34 @@ class MovementControllerUnitTests(BaseTest):
         user_to_user_link1 = UserToUserLink(movement, user_1, user_2)
         user_to_user_link2 = UserToUserLink(movement, user_2, user_1)
 
-        self.session.add_all([movement, subscription_1, subscription_2, user_to_user_link1, user_to_user_link2])
+        self.session.add_all([
+            movement,
+            subscription_1, subscription_2,
+            user_to_user_link1, user_to_user_link2
+        ])
         self.session.commit()
 
         u1_id, u2_id, m_id = user_1.id, user_2.id, movement.id
 
-        now = "1995-01-15 12:00:00+01:00"
-        later = "1996-03-15 08:00:00+01:00"
+        now = datetime(1995, 1, 15, 12)
+        later = datetime(1996, 3, 15, 8)
 
         message = "This is a message"
 
-        with freeze_time(now, tz_offset=1):
+        with freeze_time(now):
             send_signal(u1_id, m_id)
-        with freeze_time(later, tz_offset=1):
+        with freeze_time(later):
             send_signal(u2_id, m_id, message=message)
-        
+
+        with freeze_time(now):
+            send_signal(u1_id, m_id)
+        with freeze_time(later):
+            send_signal(u2_id, m_id, message=message)
+
         self.session.add_all([user_1, user_2, movement])
+
         user_dict = user_1.to_json()
-        user_dict["last_signal"] = {"time_stamp": now}
+        user_dict["last_signal"] = {"time_stamp": str(now.astimezone())}
         expected = {
             "id": 1,
             "name": "movement1",
@@ -73,14 +88,17 @@ class MovementControllerUnitTests(BaseTest):
             "subscribed": True,
             "leaders": [user_dict],
             "last_signal_sent": {
-                "time_stamp": "1996-03-15 08:00:00+01:00",
+                "time_stamp": str(later.astimezone()),
                 "message": "This is a message"
             },
         }
-        self.assertEqual(get_movement(movement.id, user_2.id), expected)
+        self.assertDictEqual(get_movement(movement.id, user_2.id), expected)
 
 
 class MovementControllerIntergrationTests(BaseTest):
+    """User stories tests for movement controller."""
+
     @skip
     def test_create_and_get_movement(self):
+        """As a user I would like to see a list of movements."""
         pass

@@ -1,3 +1,5 @@
+"""Module for database models found in Gridt."""
+
 from .user import User
 from .movement import Movement
 from .user_to_user_link import UserToUserLink
@@ -6,11 +8,12 @@ from .subscription import Subscription
 from .creation import Creation
 from .announcement import Announcement
 
-__all__ = ["User",
+__all__ = [
+    "User",
     "Movement",
     "UserToUserLink",
     "Signal",
     "Subscription",
     "Creation",
     "Announcement"
-    ]
+]

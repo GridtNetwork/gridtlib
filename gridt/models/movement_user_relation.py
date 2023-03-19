@@ -1,3 +1,4 @@
+"""Model for creation in the database."""
 from datetime import datetime
 from sqlalchemy import Column, Integer, DateTime, ForeignKey, String
 from sqlalchemy.orm import relationship
@@ -5,13 +6,16 @@ from sqlalchemy.orm import relationship
 from gridt.db import Base
 from gridt.models import User, Movement
 
+
 class MovementUserRelation(Base):
     """
-    This class is an abstract representation of the relation between a user and movement.
-    Class such as subscription and creation inherite from this class to provide their functionality.
-    These classes exist to reduce coupling between users and movements.
-    Aswell as, to adhere to the Open/Close Principle. 
+    Abstract class representation of the relation between a user and movement.
+
+    Class such as subscription and creation inherite from this class to
+    provide their functionality. These classes exist to reduce coupling between
+    users and movements. Aswell as, to adhere to the Open/Close Principle.
     """
+
     __tablename__ = 'MovementUserRelation'
     id = Column(Integer, primary_key=True)
 
@@ -34,13 +38,13 @@ class MovementUserRelation(Base):
     movement_id = Column(Integer, ForeignKey('movements.id'))
     movement = relationship(Movement, foreign_keys=[movement_id])
 
-    def __init__(self, user:User, movement:Movement):
+    def __init__(self, user: User, movement: Movement):
         """
-        Initalization method for the relation between user and movement.
+        Construct a relation between a user and a movement.
 
         Args:
-            user (User, optional): The User related to the movement. Defaults to None.
-            movement (Movement, optional): The Movement related to the user. Defaults to None.
+            user (User, optional): The User related to the movement.
+            movement (Movement, optional): The Movement related to the user.
         """
         self.user = user
         self.movement = movement
@@ -48,7 +52,7 @@ class MovementUserRelation(Base):
 
     def has_ended(self):
         """
-        Check if the relation has ended
+        Check if the relation has ended.
 
         Returns:
             bool: true if ended, otherwise false
@@ -57,7 +61,7 @@ class MovementUserRelation(Base):
 
     def end(self):
         """
-        Ends the relation.
+        End the relation.
 
         Note:
             the relation is still present in the database
