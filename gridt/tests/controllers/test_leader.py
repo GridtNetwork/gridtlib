@@ -1,13 +1,23 @@
+"""Test for leader controller."""
 from gridt.tests.basetest import BaseTest
 from gridt.models import UserToUserLink, Signal, User, Movement
 from gridt.models import Subscription as SUB
-from gridt.controllers.leader import send_signal, add_initial_followers, remove_all_followers, possible_leaders, get_last_signal
+from gridt.controllers.leader import (
+    send_signal,
+    add_initial_followers,
+    remove_all_followers,
+    possible_leaders,
+    get_last_signal
+)
 from freezegun import freeze_time
 from datetime import datetime
 
 
 class OnSubscriptionEventsLeaderTests(BaseTest):
+    """Test the functions dependent on subscriptions."""
+
     def test_add_initial_followers(self):
+        """Unittest for add_initial_followers."""
         leader = self.create_user()
         u1 = self.create_user()
         u2 = self.create_user()
@@ -16,28 +26,31 @@ class OnSubscriptionEventsLeaderTests(BaseTest):
         u5 = self.create_user()
         mA = self.create_movement()
         mB = self.create_movement()
-        self.session.add_all(
-            [   
-                # Movement A
-                UserToUserLink(mA, u1, u2),
-                UserToUserLink(mA, u1, u3), UserToUserLink(mA, u2, u3),
-                UserToUserLink(mA, u2, u4), UserToUserLink(mA, u3, u4),
-                UserToUserLink(mA, u3, u5), UserToUserLink(mA, u4, u5),
-                UserToUserLink(mA, u3, u1), UserToUserLink(mA, u5, u1),
-                UserToUserLink(mA, u5, u2),
-                SUB(u1, mA), SUB(u2, mA),
-                SUB(u3, mA), SUB(u4, mA),
-                SUB(u5, mA),
+        self.session.add_all([
+            # Movement A
+            UserToUserLink(mA, u1, u2),
+            UserToUserLink(mA, u1, u3), UserToUserLink(mA, u2, u3),
+            UserToUserLink(mA, u2, u4), UserToUserLink(mA, u3, u4),
+            UserToUserLink(mA, u3, u5), UserToUserLink(mA, u4, u5),
+            UserToUserLink(mA, u3, u1), UserToUserLink(mA, u5, u1),
+            UserToUserLink(mA, u5, u2),
+            SUB(u1, mA), SUB(u2, mA),
+            SUB(u3, mA), SUB(u4, mA),
+            SUB(u5, mA),
 
-                # Movement B
-                UserToUserLink(mB, u1, u2), UserToUserLink(mB, u1, u3), UserToUserLink(mB, u1, u4), UserToUserLink(mB, u1, u5),
-                UserToUserLink(mB, u2, u3), UserToUserLink(mB, u2, u4), UserToUserLink(mB, u2, u5), UserToUserLink(mB, u2, u1),
-                UserToUserLink(mB, u3, u4), UserToUserLink(mB, u3, u5), UserToUserLink(mB, u3, u1), UserToUserLink(mB, u3, u2),
-                UserToUserLink(mB, u4, u5), UserToUserLink(mB, u4, u1), UserToUserLink(mB, u4, u2), UserToUserLink(mB, u4, u3),
-                UserToUserLink(mB, u5, u1), UserToUserLink(mB, u5, u2), UserToUserLink(mB, u5, u3), UserToUserLink(mB, u5, u4),
-                SUB(u1, mB), SUB(u2, mB), SUB(u3, mB), SUB(u4, mB), SUB(u5, mB)
-            ]
-        )
+            # Movement B
+            UserToUserLink(mB, u1, u2), UserToUserLink(mB, u1, u3),
+            UserToUserLink(mB, u1, u4), UserToUserLink(mB, u1, u5),
+            UserToUserLink(mB, u2, u3), UserToUserLink(mB, u2, u4),
+            UserToUserLink(mB, u2, u5), UserToUserLink(mB, u2, u1),
+            UserToUserLink(mB, u3, u4), UserToUserLink(mB, u3, u5),
+            UserToUserLink(mB, u3, u1), UserToUserLink(mB, u3, u2),
+            UserToUserLink(mB, u4, u5), UserToUserLink(mB, u4, u1),
+            UserToUserLink(mB, u4, u2), UserToUserLink(mB, u4, u3),
+            UserToUserLink(mB, u5, u1), UserToUserLink(mB, u5, u2),
+            UserToUserLink(mB, u5, u3), UserToUserLink(mB, u5, u4),
+            SUB(u1, mB), SUB(u2, mB), SUB(u3, mB), SUB(u4, mB), SUB(u5, mB)
+        ])
         self.session.commit()
         leader_id = leader.id
         u1_id = u1.id
@@ -47,26 +60,28 @@ class OnSubscriptionEventsLeaderTests(BaseTest):
         u5_id = u5.id
         mA_id = mA.id
         mB_id = mB.id
+        user_ids = [u1_id, u2_id, u3_id, u4_id, u5_id]
 
         # Test 5 users in Movement A (partily connected)
         add_initial_followers(leader_id, mA_id)
         self.assertEqual(self.session.query(UserToUserLink).filter(
             UserToUserLink.leader_id == leader_id,
-            UserToUserLink.follower_id.in_([u1_id, u2_id, u3_id, u4_id, u5_id]),
+            UserToUserLink.follower_id.in_(user_ids),
             UserToUserLink.movement_id == mA_id,
             UserToUserLink.destroyed.is_(None),
-        ).count(), 5)  # This is 5 because we prioritize all users having 4 leaders
+        ).count(), 5, "Prioritize all users having 4 leaders")
 
         # Test 5 users in Movement A (fully connected)
         add_initial_followers(leader_id, mB_id)
         self.assertEqual(self.session.query(UserToUserLink).filter(
             UserToUserLink.leader_id == leader_id,
-            UserToUserLink.follower_id.in_([u1_id, u2_id, u3_id, u4_id, u5_id]),
+            UserToUserLink.follower_id.in_(user_ids),
             UserToUserLink.movement_id == mB_id,
             UserToUserLink.destroyed.is_(None),
-        ).count(), 0)  # This is 0 because we do not want to give any users more than 4 leaders
+        ).count(), 0, "Don't give any users more than 4 leaders")
 
     def test_remove_all_followers(self):
+        """Tests for removing all_followers."""
         leader = self.create_user()
         u1 = self.create_user()
         u2 = self.create_user()
@@ -76,40 +91,30 @@ class OnSubscriptionEventsLeaderTests(BaseTest):
         mC = self.create_movement()
         mD = self.create_movement()
         mE = self.create_movement()
-        self.session.add_all(
-            [
-                # Movement A
-                SUB(leader, mA),
+        self.session.add_all([
+            # Movement A
+            SUB(leader, mA),
 
-                # Movement B
-                UserToUserLink(mB, u1, leader),
-                UserToUserLink(mB, leader, u1),
-                SUB(u1, mB),
-                SUB(leader, mB),
+            # Movement B
+            UserToUserLink(mB, u1, leader), UserToUserLink(mB, leader, u1),
+            SUB(u1, mB), SUB(leader, mB),
 
-                # Movement C
-                UserToUserLink(mC, u1, leader),
-                UserToUserLink(mC, u2, leader),
-                SUB(u1, mC),
-                SUB(leader, mC),
-                SUB(u2, mC),
-                
-                # Movement D
-                UserToUserLink(mD, u1, leader), UserToUserLink(mD, u2, leader), UserToUserLink(mD, u3, leader),
-                UserToUserLink(mD, u1, u2), UserToUserLink(mD, u2, u3), UserToUserLink(mD, u3, u1),
-                SUB(u1, mD),
-                SUB(leader, mD),
-                SUB(u2, mD),
-                SUB(u3, mD),
+            # Movement C
+            UserToUserLink(mC, u1, leader), UserToUserLink(mC, u2, leader),
+            SUB(u1, mC), SUB(leader, mC), SUB(u2, mC),
 
-                # Movement E
-                UserToUserLink(mE, u1, u2), UserToUserLink(mE, u2, u3), UserToUserLink(mE, u3, u1),
-                UserToUserLink(mE, u2, u1), UserToUserLink(mE, u3, u2), UserToUserLink(mE, u1, u3),
-                SUB(u1, mE),
-                SUB(u3, mE),
-                SUB(u2, mE)
-            ]
-        )
+            # Movement D
+            UserToUserLink(mD, u1, leader), UserToUserLink(mD, u2, leader),
+            UserToUserLink(mD, u3, leader), UserToUserLink(mD, u1, u2),
+            UserToUserLink(mD, u2, u3), UserToUserLink(mD, u3, u1),
+            SUB(u1, mD), SUB(leader, mD), SUB(u2, mD), SUB(u3, mD),
+
+            # Movement E
+            UserToUserLink(mE, u1, u2), UserToUserLink(mE, u2, u3),
+            UserToUserLink(mE, u3, u1), UserToUserLink(mE, u2, u1),
+            UserToUserLink(mE, u3, u2), UserToUserLink(mE, u1, u3),
+            SUB(u1, mE), SUB(u3, mE), SUB(u2, mE)
+        ])
         self.session.commit()
         leader_id = leader.id
         u1_id = u1.id
@@ -179,9 +184,12 @@ class OnSubscriptionEventsLeaderTests(BaseTest):
 
 
 class TestPossibleLeaders(BaseTest):
+    """Tests to get the possible leaders."""
 
     def test_possible_leaders(self):
         """
+        Unittest for possible_leaders.
+
         movement1:
             1 -> 5   2   4
         movement2:
@@ -213,34 +221,13 @@ class TestPossibleLeaders(BaseTest):
         sub9 = SUB(user4, movement2)
         sub10 = SUB(user5, movement2)
 
-
-
-        self.session.add_all(
-            [
-                user1,
-                user2,
-                user3,
-                user4,
-                user5,
-                movement1,
-                movement2,
-                assoc1,
-                assoc2,
-                assoc3,
-                sub1,
-                sub2,
-                sub3,
-                sub4,
-                sub5,
-                sub6,
-                sub7,
-                sub8,
-                sub9,
-                sub10,
-                assoc8,
-                assoc9,
-            ]
-        )
+        self.session.add_all([
+            user1, user2, user3, user4, user5,
+            movement1, movement2,
+            assoc1, assoc2, assoc3,
+            sub1, sub2, sub3, sub4, sub5, sub6, sub7, sub8, sub9, sub10,
+            assoc8, assoc9,
+        ])
         self.session.commit()
 
         # Set because order does not matter
@@ -265,7 +252,10 @@ class TestPossibleLeaders(BaseTest):
 
 
 class LeaderControllersTest(BaseTest):
+    """Unittest for leader signals."""
+
     def test_send_signal(self):
+        """Unittest for send_signal."""
         user1 = self.create_user()
         movement1 = self.create_movement()
         self.create_subscription(movement=movement1, user=user1)
@@ -281,6 +271,7 @@ class LeaderControllersTest(BaseTest):
         self.assertEqual(signal.movement, movement1)
 
     def test_send_signal_leader_not_in_movement(self):
+        """Unittest for send_signal case not in a movement."""
         user1 = self.create_user()
         movement1 = self.create_movement()
         self.session.add_all([user1, movement1])
@@ -290,6 +281,7 @@ class LeaderControllersTest(BaseTest):
             send_signal(user1.id, movement1.id, "Test.")
 
     def test_send_signal_commit(self):
+        """Unittest for sending a signal without message."""
         user1 = self.create_user()
         movement1 = self.create_movement()
         self.create_subscription(user=user1, movement=movement1)
@@ -297,12 +289,15 @@ class LeaderControllersTest(BaseTest):
         send_signal(user1.id, movement1.id)
 
         self.session.add_all([user1, movement1])
-        signal = self.session.get(Signal,1)
+        signal = self.session.get(Signal, 1)
         self.assertIsNotNone(signal)
 
 
 class FindSignalTest(BaseTest):
+    """Tests for getting signals."""
+
     def test_find_signal(self):
+        """Unittest for get_last_signal."""
         user1 = self.create_user()
         user2 = self.create_user()
         movement1 = self.create_movement()
@@ -312,14 +307,7 @@ class FindSignalTest(BaseTest):
         self.create_subscription(movement=movement2, user=user1)
         self.create_subscription(movement=movement2, user=user2)
 
-        self.session.add_all(
-            [
-                user1,
-                user2,
-                movement1,
-                movement2,
-            ]
-        )
+        self.session.add_all([user1, user2, movement1, movement2])
         self.session.commit()
         u1_id = user1.id
         u2_id = user2.id

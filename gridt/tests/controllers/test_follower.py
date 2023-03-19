@@ -1,15 +1,26 @@
+"""Test for follower controller."""
 from freezegun import freeze_time
 from unittest.mock import patch
 from gridt.tests.basetest import BaseTest
 from gridt.models import User, Movement, UserToUserLink
 from gridt.models import Subscription as SUB
-from gridt.controllers.follower import swap_leader, get_leader, add_initial_leaders, remove_all_leaders, possible_followers, get_leaders
+from gridt.controllers.follower import (
+    swap_leader,
+    get_leader,
+    add_initial_leaders,
+    remove_all_leaders,
+    possible_followers,
+    get_leaders
+)
 from gridt.controllers.leader import send_signal
 from datetime import datetime
 
 
 class TestLeaderlessFollowers(BaseTest):
+    """Test for adding a follower to a movement."""
+
     def test_possible_followers(self):
+        """Test for possible_followers."""
         movement1 = Movement("test1", "daily")
         movement2 = Movement("test2", "daily")
 
@@ -62,7 +73,9 @@ class TestLeaderlessFollowers(BaseTest):
             set(users[3:]),
         )
 
-        user_to_user_link1 = self.session.query(UserToUserLink).filter(UserToUserLink.id == 1).one()
+        user_to_user_link1 = self.session.query(UserToUserLink).filter(
+            UserToUserLink.id == 1
+        ).one()
         user_to_user_link1.destroy()
 
         self.assertEqual(
@@ -96,8 +109,10 @@ class TestLeaderlessFollowers(BaseTest):
 
 
 class OnSubscriptionEventsFollowerTests(BaseTest):
+    """Test the functions dependent on subscriptions."""
 
     def test_add_initial_leaders(self):
+        """Unittest for add_initial_leaders."""
         follower = self.create_user()
         u1 = self.create_user()
         u2 = self.create_user()
@@ -109,33 +124,37 @@ class OnSubscriptionEventsFollowerTests(BaseTest):
         mC = self.create_movement()
         mD = self.create_movement()
         mE = self.create_movement()
-        self.session.add_all(
-            [
-                # Movement B
-                SUB(u1, mB),
+        self.session.add_all([
+            # Movement B
+            SUB(u1, mB),
 
-                # Movement C
-                UserToUserLink(mC, u1, u2), UserToUserLink(mC, u2, u1),
-                SUB(u1, mC),
-                SUB(u2, mC),
+            # Movement C
+            UserToUserLink(mC, u1, u2), UserToUserLink(mC, u2, u1),
+            SUB(u1, mC),
+            SUB(u2, mC),
 
-                # Movement D
-                UserToUserLink(mD, u1, u2), UserToUserLink(mD, u1, u3),
-                UserToUserLink(mD, u2, u3), UserToUserLink(mD, u2, u4),
-                UserToUserLink(mD, u3, u4), UserToUserLink(mD, u3, u5),
-                UserToUserLink(mD, u4, u5), UserToUserLink(mD, u3, u1),
-                UserToUserLink(mD, u5, u1), UserToUserLink(mD, u5, u2),
-                SUB(u1, mD), SUB(u2, mD), SUB(u3, mD), SUB(u4, mD), SUB(u5, mD),
+            # Movement D
+            UserToUserLink(mD, u1, u2), UserToUserLink(mD, u1, u3),
+            UserToUserLink(mD, u2, u3), UserToUserLink(mD, u2, u4),
+            UserToUserLink(mD, u3, u4), UserToUserLink(mD, u3, u5),
+            UserToUserLink(mD, u4, u5), UserToUserLink(mD, u3, u1),
+            UserToUserLink(mD, u5, u1), UserToUserLink(mD, u5, u2),
+            SUB(u1, mD), SUB(u2, mD), SUB(u3, mD), SUB(u4, mD),
+            SUB(u5, mD),
 
-                # Movement E
-                UserToUserLink(mE, u1, u2), UserToUserLink(mE, u1, u3), UserToUserLink(mE, u1, u4), UserToUserLink(mE, u1, u5),
-                UserToUserLink(mE, u2, u3), UserToUserLink(mE, u2, u4), UserToUserLink(mE, u2, u5), UserToUserLink(mE, u2, u1),
-                UserToUserLink(mE, u3, u4), UserToUserLink(mE, u3, u5), UserToUserLink(mE, u3, u1), UserToUserLink(mE, u3, u2),
-                UserToUserLink(mE, u4, u5), UserToUserLink(mE, u4, u1), UserToUserLink(mE, u4, u2), UserToUserLink(mE, u4, u3),
-                UserToUserLink(mE, u5, u1), UserToUserLink(mE, u5, u2), UserToUserLink(mE, u5, u3), UserToUserLink(mE, u5, u4),
-                SUB(u1, mE), SUB(u2, mE), SUB(u3, mE), SUB(u4, mE), SUB(u5, mE),
-            ]
-        )
+            # Movement E
+            UserToUserLink(mE, u1, u2), UserToUserLink(mE, u1, u3),
+            UserToUserLink(mE, u1, u4), UserToUserLink(mE, u1, u5),
+            UserToUserLink(mE, u2, u3), UserToUserLink(mE, u2, u4),
+            UserToUserLink(mE, u2, u5), UserToUserLink(mE, u2, u1),
+            UserToUserLink(mE, u3, u4), UserToUserLink(mE, u3, u5),
+            UserToUserLink(mE, u3, u1), UserToUserLink(mE, u3, u2),
+            UserToUserLink(mE, u4, u5), UserToUserLink(mE, u4, u1),
+            UserToUserLink(mE, u4, u2), UserToUserLink(mE, u4, u3),
+            UserToUserLink(mE, u5, u1), UserToUserLink(mE, u5, u2),
+            UserToUserLink(mE, u5, u3), UserToUserLink(mE, u5, u4),
+            SUB(u1, mE), SUB(u2, mE), SUB(u3, mE), SUB(u4, mE), SUB(u5, mE)
+        ])
         self.session.commit()
         follower_id = follower.id
         u1_id = u1.id
@@ -151,7 +170,9 @@ class OnSubscriptionEventsFollowerTests(BaseTest):
 
         # Test 0 users in movement A
         add_initial_leaders(follower_id, mA_id)
-        self.assertEqual(self.session.query(UserToUserLink).filter(UserToUserLink.movement_id == mA_id).count(), 0)
+        self.assertEqual(self.session.query(UserToUserLink).filter(
+            UserToUserLink.movement_id == mA_id
+        ).count(), 0)
 
         # Test 1 user in movement B
         add_initial_leaders(follower_id, mB_id)
@@ -205,6 +226,7 @@ class OnSubscriptionEventsFollowerTests(BaseTest):
         ).count(), 4)
 
     def test_remove_all_leaders(self):
+        """Unittest for remove_all_leaders."""
         follower = self.create_user()
         u1 = self.create_user()
         u2 = self.create_user()
@@ -214,47 +236,30 @@ class OnSubscriptionEventsFollowerTests(BaseTest):
         mC = self.create_movement()
         mD = self.create_movement()
         mE = self.create_movement()
-        self.session.add_all(
-            [
-                # Movement A
-                SUB(follower, mA),
+        self.session.add_all([
+            # Movement A
+            SUB(follower, mA),
 
-                # Movement B
-                UserToUserLink(mB, follower, u1),
-                SUB(follower, mB),
-                SUB(u1, mB),
+            # Movement B
+            UserToUserLink(mB, follower, u1),
+            SUB(follower, mB), SUB(u1, mB),
 
-                # Movement C
-                UserToUserLink(mC, follower, u1), UserToUserLink(mC, follower, u2),
-                SUB(follower, mC),
-                SUB(u1, mC),
-                SUB(u2, mC),
+            # Movement C
+            UserToUserLink(mC, follower, u1), UserToUserLink(mC, follower, u2),
+            SUB(follower, mC), SUB(u1, mC), SUB(u2, mC),
 
-                # Movement D
-                UserToUserLink(mD, follower, u1),
-                UserToUserLink(mD, follower, u2),
-                UserToUserLink(mD, follower, u3),
-                UserToUserLink(mD, u1, u2),
-                UserToUserLink(mD, u2, u3),
-                UserToUserLink(mD, u3, u1),
-                SUB(follower, mD),
-                SUB(u1, mD),
-                SUB(u2, mD),
-                SUB(u3, mD),
+            # Movement D
+            UserToUserLink(mD, follower, u1), UserToUserLink(mD, follower, u2),
+            UserToUserLink(mD, follower, u3), UserToUserLink(mD, u1, u2),
+            UserToUserLink(mD, u2, u3), UserToUserLink(mD, u3, u1),
+            SUB(follower, mD), SUB(u1, mD), SUB(u2, mD), SUB(u3, mD),
 
-                # Movement E
-                UserToUserLink(mE, u1, u2),
-                UserToUserLink(mE, u2, u3),
-                UserToUserLink(mE, u3, u1),
-                UserToUserLink(mE, u2, u1),
-                UserToUserLink(mE, u3, u2),
-                UserToUserLink(mE, u1, u3),
-                SUB(u1, mE),
-                SUB(u2, mE),
-                SUB(u3, mE),
-            ]
-        )
-
+            # Movement E
+            UserToUserLink(mE, u1, u2), UserToUserLink(mE, u2, u3),
+            UserToUserLink(mE, u3, u1), UserToUserLink(mE, u2, u1),
+            UserToUserLink(mE, u3, u2), UserToUserLink(mE, u1, u3),
+            SUB(u1, mE), SUB(u2, mE), SUB(u3, mE)
+        ])
 
         self.session.commit()
         follower_id = follower.id
@@ -334,15 +339,19 @@ class OnSubscriptionEventsFollowerTests(BaseTest):
             UserToUserLink.movement_id == mE_id,
             UserToUserLink.destroyed.is_(None)
         ).count(), 6)
-  
-        
+
+
 class GetLeaderTest(BaseTest):
+    """Unittest for get_leader function."""
+
     @patch(
         "gridt.controllers.follower.User.get_email_hash",
         return_value="email_hash",
     )
     def test_get_leader(self, avatar_func):
         """
+        Test for get_leader.
+
         movement1:
             l2 <- f -> l1
         movement2:
@@ -407,8 +416,12 @@ class GetLeaderTest(BaseTest):
 
 
 class SwapTest(BaseTest):
+    """Test for swap leaders."""
+
     def test_swap(self):
         """
+        Unittest for swap leaders.
+
         movement1:
             1 <-> 2 4 5
 
@@ -453,6 +466,8 @@ class SwapTest(BaseTest):
 
     def test_swap_leader_complicated(self):
         """
+        Unittest for swap_leader.
+
         Movement 1
 
               3 -> 1 <-> 2
@@ -487,29 +502,12 @@ class SwapTest(BaseTest):
         sub5 = SUB(user1, movement2)
         sub6 = SUB(user5, movement2)
 
-
-        self.session.add_all(
-            [
-                user1,
-                user2,
-                user3,
-                user4,
-                movement1,
-                movement2,
-                assoc1,
-                assoc2,
-                assoc3,
-                assoc4,
-                assoc5,
-                assoc6,
-                sub1,
-                sub2,
-                sub3,
-                sub4,
-                sub5,
-                sub6
-            ]
-        )
+        self.session.add_all([
+            user1, user2, user3, user4,
+            movement1, movement2,
+            assoc1, assoc2, assoc3, assoc4, assoc5, assoc6,
+            sub1, sub2, sub3, sub4, sub5, sub6
+        ])
         self.session.commit()
 
         new_leader = swap_leader(user1.id, movement1.id, user2.id)
@@ -523,8 +521,12 @@ class SwapTest(BaseTest):
 
 
 class TestGetLeaders(BaseTest):
+    """Test get_leaders."""
+
     def test_get_leaders(self):
         """
+        Unittest for get_leaders.
+
         movement1:
             3 <- 1 -> 2 -> 4
         """
@@ -550,6 +552,8 @@ class TestGetLeaders(BaseTest):
 
     def test_get_leaders_removed(self):
         """
+        Unittest for get_leaders in case of removal.
+
         movement1:
             3 <- 1 -> 2
                  |

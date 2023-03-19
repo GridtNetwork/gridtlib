@@ -1,3 +1,4 @@
+"""Test for creation controller."""
 from ..basetest import BaseTest
 
 from gridt.controllers.creation import (
@@ -9,9 +10,12 @@ from gridt.controllers.creation import (
 import gridt.exc as E
 from gridt.models.creation import Creation
 
+
 class CreationControllerTest(BaseTest):
+    """Unittest for creation controller."""
 
     def test_helper_get_creation(self):
+        """Unittest for _get_creation."""
         user = self.create_user()
         movement = self.create_movement()
 
@@ -30,8 +34,9 @@ class CreationControllerTest(BaseTest):
         self.assertEqual(creation1.id, creation2.id)
         self.assertEqual(creation1.user_id, creation2.user_id)
         self.assertEqual(creation1.movement_id, creation2.movement_id)
-    
+
     def test_is_creator(self):
+        """Unittest for is_creator."""
         u1 = self.create_user()
         u2 = self.create_user()
         u3 = self.create_user()
@@ -58,30 +63,39 @@ class CreationControllerTest(BaseTest):
         self.assertFalse(is_creator(user_3_id, movement_2_id))
 
     def test_new_movement_by_user(self):
+        """Unittest for new_movement_by_user."""
         user = self.create_user(is_admin=True)
         m_name = "Test Movement"
         m_interval = "daily"
         m_short = "This is a movement for testing purposes"
         m_description = (
-        "Unit tests are important for a movement creation because they allow you "
-        "to verify that the individual units of code that make up the movement "
-        "are working correctly. This is important because it helps to ensure the "
-        "overall integrity and reliability of the movement, as well as making it "
-        "easier to identify and fix any issues that may arise. Additionally, "
-        "having a comprehensive set of unit tests can also make it easier to "
-        "make changes to the movement, as you can use the tests to verify that "
-        "the changes you have made have not introduced any new problems."
+            "Unit tests are important for a movement creation because they "
+            "allow you to verify that the individual units of code that make "
+            "up the movement are working correctly. This is important because "
+            "it helps to ensure the overall integrity and reliability of the "
+            "movement, as well as making it easier to identify and fix any "
+            "issues that may arise. Additionally, having a comprehensive set "
+            "of unit tests can also make it easier to make changes to the "
+            "movement, as you can use the tests to verify that the changes "
+            "you have made have not introduced any new problems."
         )
         self.session.commit()
         user_id = user.id
 
-        json = new_movement_by_user(user_id, m_name, m_interval, m_short, m_description)
+        json = new_movement_by_user(
+            user_id=user_id,
+            name=m_name,
+            interval=m_interval,
+            short_description=m_short,
+            description=m_description
+        )
         self.assertEqual(json['movement']['name'], m_name)
         self.assertEqual(json['movement']['interval'], m_interval)
         self.assertEqual(json['movement']['short_description'], m_short)
         self.assertEqual(json['movement']['description'], m_description)
 
     def test_remove_creation(self):
+        """Unittest for remove_creation."""
         movement = self.create_movement()
         u1 = self.create_user()
         u2 = self.create_user()
@@ -105,4 +119,3 @@ class CreationControllerTest(BaseTest):
         # Test trying to remove none existing subscription
         with self.assertRaises(E.UserIsNotCreator):
             remove_creation(user_2_id, movement_id)
-

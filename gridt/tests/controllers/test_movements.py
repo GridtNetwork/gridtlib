@@ -1,3 +1,4 @@
+"""Test for movement controller."""
 from freezegun import freeze_time
 from unittest import skip
 
@@ -11,9 +12,10 @@ from datetime import datetime
 
 
 class MovementControllerUnitTests(BaseTest):
-
+    """Unittest for movement controller."""
 
     def test_create_movement(self):
+        """Unittest for create_movement."""
         json_creation = create_movement(
             "movement1",
             "daily",
@@ -32,8 +34,9 @@ class MovementControllerUnitTests(BaseTest):
         }
 
         self.assertDictEqual(expected, json_creation)
-    
+
     def test_get_movement(self):
+        """Unittest for get_movement."""
         movement = Movement(
             "movement1",
             "daily",
@@ -47,7 +50,11 @@ class MovementControllerUnitTests(BaseTest):
         user_to_user_link1 = UserToUserLink(movement, user_1, user_2)
         user_to_user_link2 = UserToUserLink(movement, user_2, user_1)
 
-        self.session.add_all([movement, subscription_1, subscription_2, user_to_user_link1, user_to_user_link2])
+        self.session.add_all([
+            movement,
+            subscription_1, subscription_2,
+            user_to_user_link1, user_to_user_link2
+        ])
         self.session.commit()
 
         u1_id, u2_id, m_id = user_1.id, user_2.id, movement.id
@@ -61,7 +68,7 @@ class MovementControllerUnitTests(BaseTest):
             send_signal(u1_id, m_id)
         with freeze_time(later):
             send_signal(u2_id, m_id, message=message)
-       
+
         with freeze_time(now):
             send_signal(u1_id, m_id)
         with freeze_time(later):
@@ -89,6 +96,9 @@ class MovementControllerUnitTests(BaseTest):
 
 
 class MovementControllerIntergrationTests(BaseTest):
+    """User stories tests for movement controller."""
+
     @skip
     def test_create_and_get_movement(self):
+        """As a user I would like to see a list of movements."""
         pass

@@ -65,7 +65,7 @@ class BaseTest(TestCase):
         return movement
 
     def create_subscription(self, movement, user):
-        """Create a subscription between a user and a movement"""
+        """Create a subscription between a user and a movement."""
         subscription = Subscription(user, movement)
         self.session.add(subscription)
         return subscription
