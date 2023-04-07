@@ -51,8 +51,8 @@ def get_movement(movement_identifier, user_id):
     """Get a movement."""
     with session_scope() as session:
         try:
-            movement_identifier = int(movement_identifier)
-            movement = load_movement(movement_identifier, session)
+            movement_id = int(movement_identifier)
+            movement = load_movement(movement_id, session)
         except ValueError:
             movement = (
                 session.query(Movement)
@@ -62,6 +62,24 @@ def get_movement(movement_identifier, user_id):
 
         user = load_user(user_id, session)
         return extend_movement_json(movement, user, session)
+
+
+def movement_name_exists(movement_name: str) -> bool:
+    """
+    Is the provided movement name currently in use.
+
+    Args:
+        movement_name (str): The movement name as a string.
+
+    Returns:
+        bool: True if a movement already has this name, and False otherwise.
+    """
+    with session_scope() as session:
+        movement = session.query(Movement).filter_by(
+            name=movement_name
+        ).one_or_none()
+
+        return (movement is not None)
 
 
 def movement_exists(movement_id):

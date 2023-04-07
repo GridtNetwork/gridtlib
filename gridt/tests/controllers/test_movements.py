@@ -6,7 +6,11 @@ from gridt.tests.basetest import BaseTest
 from gridt.models import Movement, Subscription, UserToUserLink
 
 from gridt.controllers.leader import send_signal
-from gridt.controllers.movements import get_movement, create_movement
+from gridt.controllers.movements import (
+    get_movement,
+    create_movement,
+    movement_name_exists
+)
 
 from datetime import datetime
 
@@ -93,6 +97,15 @@ class MovementControllerUnitTests(BaseTest):
             },
         }
         self.assertDictEqual(get_movement(movement.id, user_2.id), expected)
+
+    def test_movement_name_exists(self):
+        movement = self.create_movement()
+        name = movement.name
+        not_name = "Not " + name
+        self.session.commit()
+
+        self.assertTrue(movement_name_exists(movement_name=name))
+        self.assertFalse(movement_name_exists(movement_name=not_name))
 
 
 class MovementControllerIntergrationTests(BaseTest):
