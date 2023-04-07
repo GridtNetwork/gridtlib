@@ -99,6 +99,7 @@ class MovementControllerUnitTests(BaseTest):
         self.assertDictEqual(get_movement(movement.id, user_2.id), expected)
 
     def test_movement_name_exists(self):
+        """Unittest for movement_name_exists."""
         movement = self.create_movement()
         name = movement.name
         not_name = "Not " + name
