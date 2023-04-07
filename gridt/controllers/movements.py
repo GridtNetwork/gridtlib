@@ -47,20 +47,20 @@ def get_all_movements(user_id):
         ]
 
 
-def get_movement(movement_identifier, user_id):
-    """Get a movement."""
-    with session_scope() as session:
-        try:
-            movement_id = int(movement_identifier)
-            movement = load_movement(movement_id, session)
-        except ValueError:
-            movement = (
-                session.query(Movement)
-                .filter_by(name=movement_identifier)
-                .one()
-            )
+def get_movement(movement_id: int, user_id: int) -> dict:
+    """
+    Get a movement as user.
 
+    Args:
+        movement_id (int): The id of the movement to get.
+        user_id (int): The id of the user to get movement as.
+
+    Returns:
+        dict: the JSON representation of the movement.
+    """
+    with session_scope() as session:
         user = load_user(user_id, session)
+        movement = load_movement(movement_id, session)
         return extend_movement_json(movement, user, session)
 
 
