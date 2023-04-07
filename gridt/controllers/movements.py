@@ -47,21 +47,39 @@ def get_all_movements(user_id):
         ]
 
 
-def get_movement(movement_identifier, user_id):
-    """Get a movement."""
-    with session_scope() as session:
-        try:
-            movement_identifier = int(movement_identifier)
-            movement = load_movement(movement_identifier, session)
-        except ValueError:
-            movement = (
-                session.query(Movement)
-                .filter_by(name=movement_identifier)
-                .one()
-            )
+def get_movement(movement_id: int, user_id: int) -> dict:
+    """
+    Get a movement as user.
 
+    Args:
+        movement_id (int): The id of the movement to get.
+        user_id (int): The id of the user to get movement as.
+
+    Returns:
+        dict: the JSON representation of the movement.
+    """
+    with session_scope() as session:
         user = load_user(user_id, session)
+        movement = load_movement(movement_id, session)
         return extend_movement_json(movement, user, session)
+
+
+def movement_name_exists(movement_name: str) -> bool:
+    """
+    Is the provided movement name currently in use.
+
+    Args:
+        movement_name (str): The movement name as a string.
+
+    Returns:
+        bool: True if a movement already has this name, and False otherwise.
+    """
+    with session_scope() as session:
+        movement = session.query(Movement).filter_by(
+            name=movement_name
+        ).one_or_none()
+
+        return (movement is not None)
 
 
 def movement_exists(movement_id):
