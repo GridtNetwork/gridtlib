@@ -8,6 +8,7 @@ from . import user
 from . import creation
 from . import subscription
 from . import announcement
+from . import network
 
 __all__ = [
     "follower",
@@ -17,5 +18,6 @@ __all__ = [
     "user",
     "creation",
     "subscription",
-    "announcement"
+    "announcement",
+    "network",
 ]
