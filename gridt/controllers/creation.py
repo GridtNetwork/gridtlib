@@ -6,7 +6,6 @@ from gridt.controllers import (
 )
 from .helpers import (
     session_scope,
-    load_movement,
     load_user,
     GridtExceptions,
     assert_user_is_admin,
