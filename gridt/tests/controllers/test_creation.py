@@ -9,6 +9,7 @@ from gridt.controllers.creation import (
 )
 import gridt.exc as E
 from gridt.models.creation import Creation
+from gridt.models.movement import Movement
 
 
 class CreationControllerTest(BaseTest):
@@ -62,8 +63,8 @@ class CreationControllerTest(BaseTest):
         self.assertFalse(is_creator(user_3_id, movement_1_id))
         self.assertFalse(is_creator(user_3_id, movement_2_id))
 
-    def test_new_movement_by_user(self):
-        """Unittest for new_movement_by_user."""
+    def test_new_movement_by_admin(self):
+        """Unittest for new_movement_by_user when user is an admin."""
         user = self.create_user(is_admin=True)
         m_name = "Test Movement"
         m_interval = "daily"
@@ -93,6 +94,23 @@ class CreationControllerTest(BaseTest):
         self.assertEqual(json['movement']['interval'], m_interval)
         self.assertEqual(json['movement']['short_description'], m_short)
         self.assertEqual(json['movement']['description'], m_description)
+
+    def test_new_movement_by_non_admin(self):
+        """Unittest for new_movement_by_user when user is not an admin."""
+        user = self.create_user(is_admin=False)
+        m_name = "Test Movement"
+        m_interval = "daily"
+        self.session.commit()
+        user_id = user.id
+
+        with self.assertRaises(E.UserNotAdmin):
+            new_movement_by_user(
+                user_id=user_id,
+                name=m_name,
+                interval=m_interval,
+            )
+        self.assertEqual(self.session.query(Creation).count(), 0)
+        self.assertEqual(self.session.query(Movement).count(), 0)
 
     def test_remove_creation(self):
         """Unittest for remove_creation."""
