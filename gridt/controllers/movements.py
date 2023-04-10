@@ -9,13 +9,16 @@ from gridt.models import Movement
 from gridt.controllers import subscription as Subscription
 from gridt.controllers import announcement as Announcement
 
+from sqlalchemy.orm import Session
+
 
 def create_movement(
     name: str,
     interval: str,
-    short_description: str = None,
-    description: str = None,
-) -> dict:
+    short_description: str,
+    description: str,
+    session: Session,
+) -> Movement:
     """
     Create a new movement.
 
@@ -24,17 +27,15 @@ def create_movement(
         interval (str): The signal interval the new movement should have.
         short_description (str, optional): Short summary of the new movement.
         description (str, optional): More in depth description.
+        session (Session): sqlalchmey session to communicate with DB.
 
     Returns:
         dict: json representation of the new movement
     """
-    with session_scope() as session:
-        movement = Movement(name, interval, short_description, description)
-        session.add(movement)
-        session.commit()
-        movement_json = movement.to_json()
-
-    return movement_json
+    movement = Movement(name, interval, short_description, description)
+    session.add(movement)
+    session.commit()
+    return movement
 
 
 def get_all_movements(user_id):

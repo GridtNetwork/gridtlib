@@ -6,7 +6,6 @@ from gridt.controllers import (
 )
 from .helpers import (
     session_scope,
-    load_movement,
     load_user,
     GridtExceptions,
     assert_user_is_admin,
@@ -89,20 +88,20 @@ def new_movement_by_user(
     Returns:
         dict: json representation of the new creation
     """
-    movement_json = Movements.create_movement(
-        name=name,
-        interval=interval,
-        short_description=short_description,
-        description=description
-    )
-    movement_id = movement_json['id']
-
     with session_scope() as session:
         assert_user_is_admin(user_id, session)
         user = load_user(user_id, session)
-        movement = load_movement(movement_id, session)
-        creation = Creation(user, movement)
 
+        movement = Movements.create_movement(
+            name=name,
+            interval=interval,
+            short_description=short_description,
+            description=description,
+            session=session
+        )
+        movement_id = movement.id
+
+        creation = Creation(user, movement)
         session.add(creation)
         creation_json = creation.to_json()
 

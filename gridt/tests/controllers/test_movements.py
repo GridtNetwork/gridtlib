@@ -20,14 +20,16 @@ class MovementControllerUnitTests(BaseTest):
 
     def test_create_movement(self):
         """Unittest for create_movement."""
-        json_creation = create_movement(
-            "movement1",
-            "daily",
+        create_movement(
+            name="movement1",
+            interval="daily",
             short_description="Hi",
-            description="A long description"
+            description="A long description",
+            session=self.session
         )
 
-        self.session.commit()
+        movement = self.session.get(Movement, 1)
+        self.assertTrue(movement is not None)
 
         expected = {
             "id": 1,
@@ -37,7 +39,7 @@ class MovementControllerUnitTests(BaseTest):
             "interval": "daily",
         }
 
-        self.assertDictEqual(expected, json_creation)
+        self.assertDictEqual(expected, movement.to_json())
 
     def test_get_movement(self):
         """Unittest for get_movement."""
