@@ -183,6 +183,27 @@ class SubscriptionControllerUnitTest(BaseTest):
         self.assertListEqual([], get_subscriptions(user_id_1))
         self.assertEqual(2, len(get_subscriptions(user_id_2)))
 
+    def test_get_subscriptions_leaders_data(self):
+        """Test to check if leader info is contained in subscription list."""
+        follower = self.create_user()
+        leader = self.create_user()
+        movement = self.create_movement()
+        self.create_subscription(movement, follower)
+        self.create_subscription(movement, leader)
+        link = UserToUserLink(movement, follower=follower, leader=leader)
+        self.session.add(link)
+
+        follower_id, leader_id = follower.id, leader.id
+        self.session.commit()
+
+        follower_subscriptions = get_subscriptions(follower_id)
+        self.assertEqual(len(follower_subscriptions), 1)
+        extened_movement_json = follower_subscriptions[0]
+        self.assertEqual(len(extened_movement_json['leaders']), 1)
+        leader_json = extened_movement_json['leaders'][0]
+        self.assertEqual(leader_json['id'], leader_id)
+        self.assertIsNone(leader_json.get('last_signal'))
+
 
 class SubscriptionControllerIntergrationTests(BaseTest):
     """Test for User stories related to subscriptions."""

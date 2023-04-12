@@ -1,6 +1,7 @@
 """Controller for subscriptions."""
 from gridt.models import Subscription
 from gridt.controllers import follower as Follower, leader as Leader
+from gridt.controllers import movements as Movements
 from .helpers import (
     session_scope,
     load_movement,
@@ -161,6 +162,7 @@ def get_subscriptions(user_id: int) -> list:
         list: List of all the movements in json format.
     """
     with session_scope() as session:
+        user = load_user(user_id, session)
         user_subscriptions = (
             session.query(Subscription)
             .filter(
@@ -169,7 +171,11 @@ def get_subscriptions(user_id: int) -> list:
             )
         )
         return [
-            subscription.movement.to_json()
+            Movements.extend_movement_json(
+                movement=subscription.movement,
+                user=user,
+                session=session
+            )
             for subscription in user_subscriptions
         ]
 
