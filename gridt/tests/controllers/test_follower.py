@@ -401,6 +401,7 @@ class GetLeaderTest(BaseTest):
                 "bio": "",
                 "avatar": "email_hash",
                 "username": l1_name,
+                "is_admin": False,
                 "message_history": [
                     {
                         "message": "Message4",

@@ -109,6 +109,7 @@ class User(Base):
             "username": self.username,
             "bio": self.bio,
             "avatar": self.get_email_hash(),
+            "is_admin": self.is_admin,
         }
         if include_email:
             res["email"] = self.email
