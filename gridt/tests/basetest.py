@@ -4,7 +4,7 @@ import lorem
 import random
 from sqlalchemy import create_engine
 from gridt.db import Session, Base
-from .models import User, Movement
+from gridt.models import User, Movement, Subscription
 
 
 class BaseTest(TestCase):
@@ -31,7 +31,7 @@ class BaseTest(TestCase):
         self.session.close()
         Base.metadata.create_all(self.engine)
 
-    def create_user(self, generate_bio=False):
+    def create_user(self, generate_bio=False, is_admin=False):
         """Create a user in the database."""
         # Usually in tests we number the users, when outputting it is useful to
         # know which user is being represented.
@@ -46,7 +46,7 @@ class BaseTest(TestCase):
         if generate_bio:
             bio = lorem.paragraph()
 
-        user = User(username, email, password, role="user", bio=bio)
+        user = User(username, email, password, is_admin, bio=bio)
         self.session.add(user)
         return user
 
@@ -63,3 +63,9 @@ class BaseTest(TestCase):
 
         self.session.add(movement)
         return movement
+
+    def create_subscription(self, movement, user):
+        """Create a subscription between a user and a movement."""
+        subscription = Subscription(user, movement)
+        self.session.add(subscription)
+        return subscription

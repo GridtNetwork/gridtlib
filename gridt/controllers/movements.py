@@ -1,16 +1,41 @@
-import random
-from itertools import chain
+"""Controller for Movements."""
 from .helpers import (
     session_scope,
-    leaders,
-    possible_followers,
-    possible_leaders,
-    extend_movement_json,
     load_user,
     load_movement,
+    GridtExceptions
 )
-from gridt.models import Movement, MovementUserAssociation
-from gridt.exc import MovementNotFoundError
+from gridt.models import Movement
+from gridt.controllers import subscription as Subscription
+from gridt.controllers import announcement as Announcement
+
+from sqlalchemy.orm import Session
+
+
+def create_movement(
+    name: str,
+    interval: str,
+    short_description: str,
+    description: str,
+    session: Session,
+) -> Movement:
+    """
+    Create a new movement.
+
+    Args:
+        name (str): The name of the movement
+        interval (str): The signal interval the new movement should have.
+        short_description (str, optional): Short summary of the new movement.
+        description (str, optional): More in depth description.
+        session (Session): sqlalchmey session to communicate with DB.
+
+    Returns:
+        dict: json representation of the new movement
+    """
+    movement = Movement(name, interval, short_description, description)
+    session.add(movement)
+    session.commit()
+    return movement
 
 
 def get_all_movements(user_id):
@@ -23,137 +48,73 @@ def get_all_movements(user_id):
         ]
 
 
-def get_movement(movement_identifier, user_id):
-    """Get a movement."""
-    with session_scope() as session:
-        try:
-            movement_identifier = int(movement_identifier)
-            movement = load_movement(movement_identifier, session)
-        except ValueError:
-            movement = (
-                session.query(Movement)
-                .filter_by(name=movement_identifier)
-                .one()
-            )
-
-        user = load_user(user_id, session)
-        return extend_movement_json(movement, user, session)
-
-
-def new_movement(
-    user_id: int,
-    name: str,
-    interval: str,
-    short_description: str = None,
-    description: str = None,
-):
-    """Create a new movement."""
-    with session_scope() as session:
-        user = load_user(user_id, session)
-        movement = Movement(name, interval, short_description, description)
-        _subscribe(user, movement, session)
-        session.add(movement)
-
-
-def _subscribe(user, movement, session):
+def get_movement(movement_id: int, user_id: int) -> dict:
     """
-    Add a user to the movement.
+    Get a movement as user.
 
-    The logic of this function is required by both "gridt.controllers.movement
-    .new_movement" and "gridt.controllers.movement.subscribe", therefore the
-    logic was extracted in this function.
+    Args:
+        movement_id (int): The id of the movement to get.
+        user_id (int): The id of the user to get movement as.
+
+    Returns:
+        dict: the JSON representation of the movement.
     """
-    while leaders(user, movement, session).count() < 4:
-        pos_leaders = possible_leaders(user, movement, session).all()
-        if pos_leaders:
-            assoc = MovementUserAssociation(movement, user)
-            assoc.leader = random.choice(pos_leaders)
-            session.add(assoc)
-        else:
-            if leaders(user, movement, session).count() == 0:
-                assoc = MovementUserAssociation(movement, user, None)
-                session.add(assoc)
-            break
-
-    for new_follower in possible_followers(user, movement, session):
-        association = MovementUserAssociation(movement, new_follower, user)
-        session.add(association)
-
-        assoc_none = (
-            session.query(MovementUserAssociation)
-            .filter(
-                MovementUserAssociation.movement_id == movement.id,
-                MovementUserAssociation.follower_id == new_follower.id,
-                MovementUserAssociation.leader_id.is_(None),
-            )
-            .group_by(MovementUserAssociation.follower_id)
-            .all()
-        )
-        for a in assoc_none:
-            a.destroy()
-
-
-def subscribe(user_id, movement_id):
-    """Subscribe user to a movement."""
     with session_scope() as session:
         user = load_user(user_id, session)
         movement = load_movement(movement_id, session)
+        return extend_movement_json(movement, user, session)
 
-        _subscribe(user, movement, session)
 
+def movement_name_exists(movement_name: str) -> bool:
+    """
+    Is the provided movement name currently in use.
 
-def remove_user_from_movement(user_id: int, movement: int):
+    Args:
+        movement_name (str): The movement name as a string.
+
+    Returns:
+        bool: True if a movement already has this name, and False otherwise.
+    """
     with session_scope() as session:
-        user = load_user(user_id, session)
-        movement = load_movement(movement, session)
+        movement = session.query(Movement).filter_by(
+            name=movement_name
+        ).one_or_none()
 
-        leader_muas_to_destroy = session.query(MovementUserAssociation).filter(
-            MovementUserAssociation.movement_id == movement.id,
-            MovementUserAssociation.destroyed.is_(None),
-            MovementUserAssociation.leader_id == user.id,
-        )
-
-        follower_muas_to_destroy = session.query(
-            MovementUserAssociation
-        ).filter(
-            MovementUserAssociation.movement_id == movement.id,
-            MovementUserAssociation.destroyed.is_(None),
-            MovementUserAssociation.follower_id == user.id,
-        )
-
-        for mua in set(
-            chain(follower_muas_to_destroy, leader_muas_to_destroy)
-        ):
-            mua.destroy()
-
-        session.commit()
-
-        for mua in leader_muas_to_destroy:
-            poss_leaders = possible_leaders(mua.follower)
-            # Add new MUAs for each former follower.
-            if possible_leaders:
-                new_leader = random.choice(poss_leaders)
-                new_mua = MovementUserAssociation(
-                    movement, mua.follower, new_leader
-                )
-                session.add(new_mua)
-            else:
-                new_mua = MovementUserAssociation(movement, mua.follower, None)
-                session.add(new_mua)
+        return (movement is not None)
 
 
 def movement_exists(movement_id):
+    """Check if a movement exists through an expection otherwise."""
     with session_scope() as session:
         try:
             load_movement(movement_id, session)
-        except MovementNotFoundError:
+        except GridtExceptions.MovementNotFoundError:
             return False
         return True
 
 
-def user_in_movement(user_id, movement_id):
-    with session_scope() as session:
-        user = load_user(user_id, session)
-        movement = load_movement(movement_id, session)
+def extend_movement_json(movement, user, session) -> dict:
+    """
+    Extend the json for a movement with additional information.
 
-        return user in movement.active_users
+    Args:
+        movement (Movement): The movement itself.
+        user (User): The user to retrieve the information for.
+        session (Session): The session.
+
+    Returns:
+        dict: extended movement JSON as python dict
+    """
+    movement_json = movement.to_json()
+    movement_json["subscribed"] = False
+
+    if Subscription._subscription_exists(user.id, movement.id, session):
+        movement_json["subscribed"] = True
+        Announcement.add_json_announcement_details(
+            movement_json, movement, session
+        )
+        Subscription.add_json_subscription_details(
+            movement_json, movement, user, session
+        )
+
+    return movement_json

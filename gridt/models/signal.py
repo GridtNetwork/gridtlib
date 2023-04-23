@@ -1,3 +1,4 @@
+"""Model for signals in the database."""
 from datetime import datetime
 from sqlalchemy import Column, Integer, ForeignKey, DateTime, String
 from sqlalchemy.orm import relationship
@@ -24,12 +25,14 @@ class Signal(Base):
     movement = relationship("Movement")
 
     def __init__(self, leader, movement, message=None):
+        """Construct a new signal."""
         self.leader = leader
         self.movement = movement
         self.time_stamp = datetime.now()
         self.message = message
 
     def to_json(self):
+        """Get the json representation of the signal."""
         signal_dict = {
             "time_stamp": str(self.time_stamp.astimezone()),
         }

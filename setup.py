@@ -3,6 +3,9 @@
 """The setup script."""
 
 from setuptools import setup, find_packages
+import os
+
+version = os.getenv('VERSION', '0.0.1')
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -37,10 +40,10 @@ setup(
     install_requires=requirements,
     license="MIT license",
     include_package_data=True,
-    keywords='gridtlib',
-    name='gridtlib',
+    keywords='gridt-library',
+    name='gridt-library',
     packages=find_packages(include=['gridt', 'gridt.*']),
     url='https://github.com/GridtNetwork/gridtlib',
-    version='0.0.1',
+    version=version,
     zip_safe=False,
 )

@@ -1,14 +1,12 @@
+"""Model for user in the database."""
 import datetime
 import jwt
-from sqlalchemy import Column, Integer, String, UnicodeText
-from sqlalchemy.orm import relationship, object_session
-from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy import Column, Integer, String, UnicodeText, Boolean
 
 from passlib.apps import custom_app_context as pwd_context
 import hashlib
 
 from gridt.db import Base
-from .movement_user_association import MovementUserAssociation
 
 
 class User(Base):
@@ -24,10 +22,6 @@ class User(Base):
     :attribute follower_associations: All associations to movements where the
         follower is this user. Useful for determining the leaders of a user.
     :attribute movements: List of all movements that the user is subscribed to.
-
-    :todo: Make a user.leaders dictionary attribute that has movements as the
-        keys and lists of leaders as the values. Right now this is solved with
-        the leaders method.
     """
 
     __tablename__ = "users"
@@ -36,59 +30,31 @@ class User(Base):
     username = Column(String(32))
     email = Column(String(40), unique=True, nullable=False)
     password_hash = Column(String(128))
-    role = Column(String(32))
+    is_admin = Column(Boolean())
     bio = Column(UnicodeText)
 
-    follower_associations = relationship(
-        "MovementUserAssociation",
-        foreign_keys="MovementUserAssociation.follower_id",
-    )
-
-    movements = association_proxy(
-        "follower_associations",
-        "movement",
-        creator=lambda movement: MovementUserAssociation(movement=movement),
-    )
-
-    @property
-    def current_movements(self):
-        # To prevent circular imports this is done here
-        from .movement import Movement
-
-        return (
-            object_session(self)
-            .query(Movement)
-            .join(MovementUserAssociation)
-            .filter(
-                MovementUserAssociation.movement_id == Movement.id,
-                MovementUserAssociation.follower_id == self.id,
-                MovementUserAssociation.destroyed.is_(None),
-            )
-            .group_by(Movement.id)
-            .all()
-        )
-
-    def __init__(self, username, email, password, role="user", bio=""):
+    def __init__(self, username, email, password, is_admin=False, bio=""):
+        """Construct a new user."""
         self.username = username
         self.email = email
         self.hash_and_store_password(password)
-        self.role = role
+        self.is_admin = is_admin
         self.bio = bio
 
     def __repr__(self):
+        """Get the string representation of the user."""
         return f"<User username={self.username}>"
 
     def hash_and_store_password(self, password):
         """
         Hash password and set it as the password_hash.
+
         :param str password: Password that is to be hashed.
         """
         self.password_hash = pwd_context.hash(password)
 
     def get_email_hash(self):
-        """
-        Hash e-mail with md5.
-        """
+        """Hash e-mail with md5."""
         h = hashlib.md5()
         h.update(bytes(self.email, "utf-8"))
         email_hash = h.hexdigest()
@@ -96,14 +62,14 @@ class User(Base):
 
     def verify_password(self, password):
         """
-        Verify that this password matches with the hashed version in the
-        database.
+        Verify that this password matches with the saved password hash.
 
         :rtype bool:
         """
         return pwd_context.verify(password, self.password_hash)
 
     def get_password_reset_token(self, secret_key):
+        """Get a token to reset the user's password."""
         now = datetime.datetime.now()
         valid = datetime.timedelta(hours=2)
         exp = now + valid
@@ -111,13 +77,13 @@ class User(Base):
 
         payload = {"user_id": self.id, "exp": exp}
 
-        token = jwt.encode(payload, secret_key, algorithm="HS256").decode(
-            "utf-8"
-        )
+        token = jwt.encode(payload, secret_key, algorithm="HS256")
         return token
 
     def get_email_change_token(self, new_email, secret_key):
         """
+        Get a token to change the user's email.
+
         Make a dictionary containing the user's id, new email
         + an expiration timestamp such that the token is valid for 2 hours
         and encodes it into a JWT.
@@ -133,17 +99,17 @@ class User(Base):
 
         token_dict = {"user_id": self.id, "new_email": new_email, "exp": exp}
 
-        token = jwt.encode(token_dict, secret_key, algorithm="HS256").decode(
-            "utf-8"
-        )
+        token = jwt.encode(token_dict, secret_key, algorithm="HS256")
         return token
 
     def to_json(self, include_email=False):
+        """Compute the json representation of the json."""
         res = {
             "id": self.id,
             "username": self.username,
             "bio": self.bio,
             "avatar": self.get_email_hash(),
+            "is_admin": self.is_admin,
         }
         if include_email:
             res["email"] = self.email
