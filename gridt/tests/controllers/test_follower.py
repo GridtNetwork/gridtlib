@@ -465,19 +465,28 @@ class SwapTest(BaseTest):
         self.assertEqual(len(get_leaders(user2, movement, self.session)), 1)
 
     def test_swap_last_signal(self):
+        """
+        Test for when a new leader has a signal after a swap.
+
+        Movement:
+        2 <X- 1 -> 3 4 5
+              |
+              v
+              s: 'Hello World'
+        """
         movement_1 = Movement("movement1", "daily")
         user_1 = User("user1", "test1@test.com", "password")
-        subscription_1 = SUB(user_1, movement_1)
+        sub_1 = SUB(user_1, movement_1)
         user_2 = User("user2", "test2@test.com", "password")
-        subscription_2 = SUB(user_2, movement_1)
+        sub_2 = SUB(user_2, movement_1)
         user_3 = User("user3", "test3@test.com", "password")
-        subscription_3 = SUB(user_3, movement_1)
+        sub_3 = SUB(user_3, movement_1)
         user_4 = User("user4", "test4@test.com", "password")
-        subscription_4 = SUB(user_4, movement_1)
+        sub_4 = SUB(user_4, movement_1)
         user_5 = User("user5", "test5@test.com", "password")
-        subscription_5 = SUB(user_5, movement_1)
+        sub_5 = SUB(user_5, movement_1)
         signaller = User('signaller', 'signal@test.com', 'password')
-        subscription_6 = SUB(signaller, movement_1)
+        sub_6 = SUB(signaller, movement_1)
         link_1_to_2 = UserToUserLink(movement_1, user_1, user_2)
         link_1_to_3 = UserToUserLink(movement_1, user_1, user_3)
         link_1_to_4 = UserToUserLink(movement_1, user_1, user_4)
@@ -490,7 +499,7 @@ class SwapTest(BaseTest):
 
         self.session.add_all([
             movement_1, user_1, user_2, user_3, user_4, user_5, signaller,
-            subscription_1, subscription_2, subscription_3, subscription_4, subscription_5, subscription_6,
+            sub_1, sub_2, sub_3, sub_4, sub_5, sub_6,
             link_1_to_2, link_1_to_3, link_1_to_4, link_1_to_5,
             signal
         ])
@@ -498,22 +507,32 @@ class SwapTest(BaseTest):
 
         new_leader = swap_leader(user_1.id, movement_1.id, user_2.id)
         self.assertEqual(new_leader['last_signal']['message'], message)
-        self.assertEqual(new_leader['last_signal']['time_stamp'], str(signal_time.astimezone()))
+        time_stamp = new_leader['last_signal']['time_stamp']
+        self.assertEqual(time_stamp, str(signal_time.astimezone()))
 
     def test_swap_last_signal_no_message(self):
+        """
+        Test for when a new leader has a signal (without message) after a swap.
+
+        Movement:
+        2 <X- 1 -> 3 4 5
+              |
+              v
+              s: *no message*
+        """
         movement_1 = Movement("movement1", "daily")
         user_1 = User("user1", "test1@test.com", "password")
-        subscription_1 = SUB(user_1, movement_1)
+        sub_1 = SUB(user_1, movement_1)
         user_2 = User("user2", "test2@test.com", "password")
-        subscription_2 = SUB(user_2, movement_1)
+        sub_2 = SUB(user_2, movement_1)
         user_3 = User("user3", "test3@test.com", "password")
-        subscription_3 = SUB(user_3, movement_1)
+        sub_3 = SUB(user_3, movement_1)
         user_4 = User("user4", "test4@test.com", "password")
-        subscription_4 = SUB(user_4, movement_1)
+        sub_4 = SUB(user_4, movement_1)
         user_5 = User("user5", "test5@test.com", "password")
-        subscription_5 = SUB(user_5, movement_1)
+        sub_5 = SUB(user_5, movement_1)
         signaller = User('signaller', 'signal@test.com', 'password')
-        subscription_6 = SUB(signaller, movement_1)
+        sub_6 = SUB(signaller, movement_1)
         link_1_to_2 = UserToUserLink(movement_1, user_1, user_2)
         link_1_to_3 = UserToUserLink(movement_1, user_1, user_3)
         link_1_to_4 = UserToUserLink(movement_1, user_1, user_4)
@@ -530,7 +549,7 @@ class SwapTest(BaseTest):
 
         self.session.add_all([
             movement_1, user_1, user_2, user_3, user_4, user_5, signaller,
-            subscription_1, subscription_2, subscription_3, subscription_4, subscription_5, subscription_6,
+            sub_1, sub_2, sub_3, sub_4, sub_5, sub_6,
             link_1_to_2, link_1_to_3, link_1_to_4, link_1_to_5,
             signal_1, signal_2
         ])
@@ -538,8 +557,8 @@ class SwapTest(BaseTest):
 
         new_leader = swap_leader(user_1.id, movement_1.id, user_2.id)
         self.assertIsNone(new_leader['last_signal']['message'])
-        self.assertEqual(new_leader['last_signal']['time_stamp'], str(later.astimezone()))
-
+        time_stamp = new_leader['last_signal']['time_stamp']
+        self.assertEqual(time_stamp, str(later.astimezone()))
 
     def test_swap_leader_complicated(self):
         """
