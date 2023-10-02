@@ -4,6 +4,7 @@ from unittest.mock import patch
 from gridt.tests.basetest import BaseTest
 from gridt.models import User, Movement, UserToUserLink
 from gridt.models import Subscription as SUB
+from gridt.models import Signal
 from gridt.controllers.follower import (
     swap_leader,
     get_leader,
@@ -425,8 +426,6 @@ class SwapTest(BaseTest):
 
         movement1:
             1 <-> 2 4 5
-
-        TODO: At this point, this does not test the last signal functionality.
         """
         user1 = User("user1", "test1@test.com", "password")
         user2 = User("user2", "test2@test.com", "password")
@@ -464,6 +463,102 @@ class SwapTest(BaseTest):
         self.session.add_all([user1, user2, user3, movement])
         self.session.add_all([user4, user5, assoc1, assoc2, sub3, sub4])
         self.assertEqual(len(get_leaders(user2, movement, self.session)), 1)
+
+    def test_swap_last_signal(self):
+        """
+        Test for when a new leader has a signal after a swap.
+
+        Movement:
+        2 <X- 1 -> 3 4 5
+              |
+              v
+              s: 'Hello World'
+        """
+        movement_1 = Movement("movement1", "daily")
+        user_1 = User("user1", "test1@test.com", "password")
+        sub_1 = SUB(user_1, movement_1)
+        user_2 = User("user2", "test2@test.com", "password")
+        sub_2 = SUB(user_2, movement_1)
+        user_3 = User("user3", "test3@test.com", "password")
+        sub_3 = SUB(user_3, movement_1)
+        user_4 = User("user4", "test4@test.com", "password")
+        sub_4 = SUB(user_4, movement_1)
+        user_5 = User("user5", "test5@test.com", "password")
+        sub_5 = SUB(user_5, movement_1)
+        signaller = User('signaller', 'signal@test.com', 'password')
+        sub_6 = SUB(signaller, movement_1)
+        link_1_to_2 = UserToUserLink(movement_1, user_1, user_2)
+        link_1_to_3 = UserToUserLink(movement_1, user_1, user_3)
+        link_1_to_4 = UserToUserLink(movement_1, user_1, user_4)
+        link_1_to_5 = UserToUserLink(movement_1, user_1, user_5)
+
+        signal_time = datetime(2023, 9, 2, 14)
+        with freeze_time(signal_time):
+            message = 'Hello World'
+            signal = Signal(signaller, movement_1, message)
+
+        self.session.add_all([
+            movement_1, user_1, user_2, user_3, user_4, user_5, signaller,
+            sub_1, sub_2, sub_3, sub_4, sub_5, sub_6,
+            link_1_to_2, link_1_to_3, link_1_to_4, link_1_to_5,
+            signal
+        ])
+        self.session.commit()
+
+        new_leader = swap_leader(user_1.id, movement_1.id, user_2.id)
+        self.assertEqual(new_leader['last_signal']['message'], message)
+        time_stamp = new_leader['last_signal']['time_stamp']
+        self.assertEqual(time_stamp, str(signal_time.astimezone()))
+
+    def test_swap_last_signal_no_message(self):
+        """
+        Test for when a new leader has a signal (without message) after a swap.
+
+        Movement:
+        2 <X- 1 -> 3 4 5
+              |
+              v
+              s: *no message*
+        """
+        movement_1 = Movement("movement1", "daily")
+        user_1 = User("user1", "test1@test.com", "password")
+        sub_1 = SUB(user_1, movement_1)
+        user_2 = User("user2", "test2@test.com", "password")
+        sub_2 = SUB(user_2, movement_1)
+        user_3 = User("user3", "test3@test.com", "password")
+        sub_3 = SUB(user_3, movement_1)
+        user_4 = User("user4", "test4@test.com", "password")
+        sub_4 = SUB(user_4, movement_1)
+        user_5 = User("user5", "test5@test.com", "password")
+        sub_5 = SUB(user_5, movement_1)
+        signaller = User('signaller', 'signal@test.com', 'password')
+        sub_6 = SUB(signaller, movement_1)
+        link_1_to_2 = UserToUserLink(movement_1, user_1, user_2)
+        link_1_to_3 = UserToUserLink(movement_1, user_1, user_3)
+        link_1_to_4 = UserToUserLink(movement_1, user_1, user_4)
+        link_1_to_5 = UserToUserLink(movement_1, user_1, user_5)
+
+        earlier = datetime(2023, 9, 2, 14)
+        later = datetime(2023, 9, 2, 15)
+        with freeze_time(earlier):
+            message = 'Hello World'
+            signal_1 = Signal(signaller, movement_1, message)
+
+        with freeze_time(later):
+            signal_2 = Signal(signaller, movement_1)
+
+        self.session.add_all([
+            movement_1, user_1, user_2, user_3, user_4, user_5, signaller,
+            sub_1, sub_2, sub_3, sub_4, sub_5, sub_6,
+            link_1_to_2, link_1_to_3, link_1_to_4, link_1_to_5,
+            signal_1, signal_2
+        ])
+        self.session.commit()
+
+        new_leader = swap_leader(user_1.id, movement_1.id, user_2.id)
+        self.assertIsNone(new_leader['last_signal']['message'])
+        time_stamp = new_leader['last_signal']['time_stamp']
+        self.assertEqual(time_stamp, str(later.astimezone()))
 
     def test_swap_leader_complicated(self):
         """

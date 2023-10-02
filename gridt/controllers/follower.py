@@ -195,8 +195,10 @@ def swap_leader(follower_id: int, movement_id: int, leader_id: int) -> dict:
         )
 
         if last_signal:
-            time_stamp = str(last_signal.time_stamp)
-            leader_dict["last_signal"] = time_stamp
+            leader_dict["last_signal"] = {
+                "time_stamp": str(last_signal.time_stamp.astimezone()),
+                "message": last_signal.message
+            }
 
         return leader_dict
 
